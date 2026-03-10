@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TPulseClient\TPulseClient.csproj" />
+    <ProjectReference Include="..\TPulse.Client\TPulse.Client.csproj" />
   </ItemGroup>
 
 </Project>

@@ -8,7 +8,7 @@ namespace TPulse.Data
 {
   public static class PostExtension
   {
-    public static UserPostEvaluation ToPostEvaluation(this TPulseClient.Model.Post post, Emotion emotion)
+    public static UserPostEvaluation ToPostEvaluation(this TPulse.Client.Model.Post post, Emotion emotion)
     {
       return new UserPostEvaluation
       {

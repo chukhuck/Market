@@ -1,7 +1,7 @@
 using System.Text.Json;
 using TPulse.Data;
-using TPulseClient;
-using TPulseClient.Model;
+using TPulse.Client;
+using TPulse.Client.Model;
 using TPulseTrainer.DAL;
 
 public partial class MainForm : Form

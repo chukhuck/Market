@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TPulse.Data;
-using TPulseClient;
+using TPulse.Client;
 using TPulseHistoryDownloader.DAL;
 
 public class Program
@@ -71,7 +71,7 @@ public class ScheduledWorker : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<HistoryDbContext>();
 
         // Получаем новые посты (простая логика: берём последние 100)
-        var posts = (await _pulseClient.GetPostsAsync(100, null)).Payload?.Items ?? new List<TPulseClient.Model.Post>();
+        var posts = (await _pulseClient.GetPostsAsync(100, null)).Payload?.Items ?? new List<TPulse.Client.Model.Post>();
 
         foreach (var post in posts)
         {

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace TPulseClient.Model
+namespace TPulse.Client.Model
 {
   public class Payload
   {

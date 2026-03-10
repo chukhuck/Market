@@ -5,9 +5,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TPulse.Data\TPulse.Data.csproj" />
+    <PackageReference Include="Microsoft.ML" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.ML" Version="5.0.0" />
+    <ProjectReference Include="..\TPulse.Data\TPulse.Data.csproj" />
   </ItemGroup>
 </Project>

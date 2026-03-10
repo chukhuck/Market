@@ -1,5 +1,5 @@
 ﻿using TPulse.Data;
-using TPulseClient;
+using TPulse.Client;
 using TPulseHistoryDownloader.DAL;
 
 class Program

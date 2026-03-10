@@ -1,4 +1,4 @@
-﻿namespace TPulseClient.Model
+﻿namespace TPulse.Client.Model
 {
   public class PostsResponse
   {

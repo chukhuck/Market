@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
-using TPulseClient.Model;
+using TPulse.Client.Model;
 
-namespace TPulseClient
+namespace TPulse.Client
 {
   public class TPulseApiClient
   {

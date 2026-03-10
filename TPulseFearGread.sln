@@ -11,6 +11,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TPulseHistoryDownloader", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TPulse.Data", "TPulse.Data\TPulse.Data.csproj", "{A4C0EC59-1054-4C14-8BBC-EC2ED69F2542}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TPulse.EmotionApi", "TPulse.EmotionApi\TPulse.EmotionApi.csproj", "{D164048C-9A2F-3369-7982-E2B235DF600C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TPulse.Scheduler", "TPulse.Scheduler\TPulse.Scheduler.csproj", "{6F6B1F11-A5FC-215F-85F6-3D613A745C50}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TPulse.Web", "TPulse.Web\TPulse.Web.csproj", "{6380ED63-141B-A387-B219-A62D1F135495}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TPulse.ML", "TPulse.ML\TPulse.ML.csproj", "{903BA9FD-053D-C0BE-39FC-21BA91E2DB1C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +41,22 @@ Global
 		{A4C0EC59-1054-4C14-8BBC-EC2ED69F2542}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A4C0EC59-1054-4C14-8BBC-EC2ED69F2542}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A4C0EC59-1054-4C14-8BBC-EC2ED69F2542}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D164048C-9A2F-3369-7982-E2B235DF600C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D164048C-9A2F-3369-7982-E2B235DF600C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D164048C-9A2F-3369-7982-E2B235DF600C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D164048C-9A2F-3369-7982-E2B235DF600C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F6B1F11-A5FC-215F-85F6-3D613A745C50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F6B1F11-A5FC-215F-85F6-3D613A745C50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F6B1F11-A5FC-215F-85F6-3D613A745C50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F6B1F11-A5FC-215F-85F6-3D613A745C50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6380ED63-141B-A387-B219-A62D1F135495}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6380ED63-141B-A387-B219-A62D1F135495}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6380ED63-141B-A387-B219-A62D1F135495}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6380ED63-141B-A387-B219-A62D1F135495}.Release|Any CPU.Build.0 = Release|Any CPU
+		{903BA9FD-053D-C0BE-39FC-21BA91E2DB1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{903BA9FD-053D-C0BE-39FC-21BA91E2DB1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{903BA9FD-053D-C0BE-39FC-21BA91E2DB1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{903BA9FD-053D-C0BE-39FC-21BA91E2DB1C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

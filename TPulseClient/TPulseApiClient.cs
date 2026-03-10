@@ -13,7 +13,7 @@ namespace TPulseClient
     private readonly string _imageUrl;
 
 
-    private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
       PropertyNameCaseInsensitive = true
     };
@@ -41,11 +41,14 @@ namespace TPulseClient
       _imageUrl = imageUrl;
     }
     //https://www.tbank.ru/mybank/api/social-api-gateway/social/post/feed/v1/feed?appName=invest&origin=web&platform=web&limit=2&cursor={cursor}
-    public async Task<PostsResponse> GetPostsAsync(int count, string cursor)
+    public async Task<PostsResponse> GetPostsAsync(int count, string? cursor)
     {
       try
       {
-        var url = $"{_broadcastUrl}&limit={count}&cursor={cursor}";
+        if(count <= 0)
+          count = 20; // Устанавливаем значение по умолчанию, если передано некорректное
+
+        var url =  string.IsNullOrEmpty(cursor) ? $"{_broadcastUrl}&limit={count}" : $"{_broadcastUrl}&limit={count}&cursor={cursor}";
         var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
@@ -74,11 +77,25 @@ namespace TPulseClient
         throw new Exception($"Ошибка загрузки постов: {ex.Message}", ex);
       }
     }
-    public async Task<PostsResponse> SearchPostsByTickerAsync(string ticker, int count, string cursor)
+    public async Task<PostsResponse> SearchPostsByTickerAsync(string? ticker, int count, string? cursor)
     {
+      if (string.IsNullOrWhiteSpace(ticker))
+        throw new ArgumentException("Тикер не может быть пустым.", nameof(ticker));
+
+      if (count <= 0)
+        count = 20; // Устанавливаем значение по умолчанию, если передано некорректное
+
+      var url = $"{_searchUrl}&limit={count}";
+
+      if (!string.IsNullOrEmpty(cursor) && !cursor.Contains("OLD"))
+      {
+        url += $"&cursor={cursor}";
+      }
+
+      url = url.Replace("{tiker}", ticker);
+
       try
       {
-        var url = $"{_searchUrl}&limit={count}&cursor={(cursor.Contains("OLD") ? "1772513641988000" : cursor)}".Replace("{tiker}", ticker);
         var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)

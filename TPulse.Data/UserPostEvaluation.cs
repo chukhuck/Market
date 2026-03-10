@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace TPulseTrainer.DAL
+namespace TPulse.Data
 {
-
-
   [Table("UserPostEvaluations")]
   public class UserPostEvaluation
   {
@@ -24,13 +18,5 @@ namespace TPulseTrainer.DAL
     public int TotalReactions { get; set; }
     public string ReactionsJson { get; set; } = string.Empty;
     public string Tickers { get; set; } = string.Empty;
-  }
-
-  public enum Emotion
-  {
-    Positive,
-    Negative,
-    Neutral,
-    Skipped
   }
 }

@@ -1,9 +1,7 @@
-﻿
-using System;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace TPulseClient.Model
+namespace TPulseClient
 {
   internal class StringOrNumberConverter : JsonConverter<string?>
   {

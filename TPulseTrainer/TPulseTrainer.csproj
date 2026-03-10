@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\TPulse.Data\TPulse.Data.csproj" />
     <ProjectReference Include="..\TPulseClient\TPulseClient.csproj" />
   </ItemGroup>
 

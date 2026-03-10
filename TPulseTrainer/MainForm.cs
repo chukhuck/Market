@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TPulse.Data;
 using TPulseClient;
 using TPulseClient.Model;
 using TPulseTrainer.DAL;
@@ -10,7 +11,7 @@ public partial class MainForm : Form
   private bool hasNext;
   private List<Post> _posts;
   private int _currentPostIndex;
-  private string nextCursor;
+  private string? nextCursor;
   private readonly AppDbContext _dbContext;
 
   private const string BroadcastUrl = "https://www.tbank.ru/mybank/api/social-api-gateway/social/post/feed/v1/feed?appName=invest&origin=web&platform=web&include=all";
@@ -43,7 +44,7 @@ public partial class MainForm : Form
 
     _pulseClient = new TPulseApiClient(BroadcastUrl, SearchUrl, ImageUrl);
     _dbContext = new AppDbContext();
-    _posts = new List<Post>();
+    _posts = [];
     _currentPostIndex = -1;
     nextCursor = LoadNextCursorFromConfig();
     hasNext = true;
@@ -72,7 +73,13 @@ public partial class MainForm : Form
 
     return defaultNextCursor;
   }
-  private void SaveConfig()
+
+  private static JsonSerializerOptions GetOptions()
+  {
+    return new JsonSerializerOptions { WriteIndented = true };
+  }
+
+  private void SaveConfig(JsonSerializerOptions serializeOptions)
   {
     try
     {
@@ -81,7 +88,7 @@ public partial class MainForm : Form
         Directory.CreateDirectory(dir);
 
       var obj = new { NextCursor = nextCursor ?? defaultNextCursor };
-      var json = JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
+      var json = JsonSerializer.Serialize(obj, serializeOptions);
       File.WriteAllText(_configPath, json);
     }
     catch
@@ -90,7 +97,7 @@ public partial class MainForm : Form
   }
   protected override void OnFormClosing(FormClosingEventArgs e)
   {
-    SaveConfig();
+    SaveConfig(GetOptions());
     base.OnFormClosing(e);
   }
   private async Task LoadNextPostsAsync()
@@ -166,12 +173,6 @@ public partial class MainForm : Form
 
     var post = _posts[_currentPostIndex];
 
-    if (emotion == Emotion.Skipped)
-    {
-      await GoToNextPostAsync();
-      return;
-    }
-
     if (post == null)
     {
       MessageBox.Show("Ошибка: текущий пост недоступен для оценки.");
@@ -179,19 +180,7 @@ public partial class MainForm : Form
       return;
     }
 
-    var evaluation = new UserPostEvaluation
-    {
-      PostId = post.Id,
-      EvaluationDate = DateTime.Now,
-      Emotion = emotion,
-      AuthorId = post.Owner?.Id ?? Guid.Empty,
-      AuthorNickname = post.Owner?.Nickname ?? "Unknown",
-      PostText = post?.Content?.Text ?? string.Empty,
-      CommentsCount = post?.CommentsCount ?? 0,
-      TotalReactions = post?.Reactions?.TotalCount ?? 0,
-      ReactionsJson = System.Text.Json.JsonSerializer.Serialize(post.Reactions),
-      Tickers = string.Join(",", post.Content?.Instruments?.Select(i => i.Ticker).Where(t => !string.IsNullOrEmpty(t)) ?? Enumerable.Empty<string>())
-    };
+    var evaluation = post.ToPostEvaluation(emotion);
 
     await _dbContext.UserPostEvaluations.AddAsync(evaluation);
     await _dbContext.SaveChangesAsync();
@@ -233,7 +222,7 @@ public partial class MainForm : Form
     nextCursor = payload.NextCursor ?? defaultNextCursor;
     txtCurrentCursor.Text = nextCursor;
 
-    _posts = payload.Items.Where(i => !string.IsNullOrEmpty(i.Content?.Text)).ToList();
+    _posts = [.. payload.Items.Where(i => !string.IsNullOrEmpty(i.Content?.Text))];
     _currentPostIndex = 0;
 
     await DisplayCurrentPostAsync();

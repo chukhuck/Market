@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TPulse.Data;
 
-namespace TPulseTrainer.DAL
+namespace TPulse.Trainer.DAL
 {
   public class AppDbContext : DbContext
   {
@@ -11,8 +11,8 @@ namespace TPulseTrainer.DAL
     {
       if (!optionsBuilder.IsConfigured)
       {
-        // Локальный файл SQLite (создаётся в рабочей директории приложения)
-        optionsBuilder.UseSqlite("Data Source=tpulsetrainer.db");
+        var conn = Environment.GetEnvironmentVariable("TRAINER_DB") ?? "Data Source=tpulsetrainer.db";
+        optionsBuilder.UseSqlite(conn);
       }
     }
   }

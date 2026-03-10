@@ -1,4 +1,4 @@
-using TPulseTrainer.DAL;
+using TPulse.Trainer.DAL;
 
 namespace TPulseTrainer
 {

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  emotionapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tpulse/app:latest
+    command: ["dotnet", "/app/emotionapi/TPulse.EmotionApi.dll"]
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:5000
+      - HISTORY_DB=Data Source=/var/lib/tpulse/tpulsehistory.db
+      - TRAINER_DB=Data Source=/var/lib/tpulse/tpulsetrainer.db
+    volumes:
+      - ./data:/var/lib/tpulse
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tpulse/app:latest
+    command: ["dotnet", "/app/scheduler/TPulse.Scheduler.dll"]
+    depends_on:
+      - emotionapi
+    environment:
+      - HISTORY_DB=Data Source=/var/lib/tpulse/tpulsehistory.db
+    volumes:
+      - ./data:/var/lib/tpulse
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: TPulse.Web/Dockerfile
+    image: tpulse/web:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - emotionapi
+    restart: unless-stopped
+
+# Notes:
+# - This compose file builds a single application image from the repository-level Dockerfile
+#   (which publishes all projects) and uses it to run the emotion API and scheduler by
+#   overriding the container command to start the required DLL.
+# - The Blazor WebAssembly app is built into a small nginx-based image using TPulse.Web/Dockerfile.
+# - SQLite files are created inside the containers by default. For persistence, map a host
+#   directory to a path inside the containers and update the connection strings in code to
+#   use that path, or bind a volume to the container working directory. Example for persistence:
+#     volumes:
+#       - ./data/emotion:/var/lib/tpulse
+#   and then change the EF Core connection string to: "Data Source=/var/lib/tpulse/tpulsehistory.db"

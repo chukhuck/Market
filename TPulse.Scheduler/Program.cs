@@ -21,7 +21,9 @@ public class Program
                     "https://pulse-image-post.cdn-tinkoff.ru/{guid_image}-small.jpeg"
                 ));
 
-                services.AddDbContext<HistoryDbContext>(options => options.UseSqlite("Data Source=tpulsehistory.db"));
+                // Read DB connection from environment to support docker volumes
+                var historyConn = Environment.GetEnvironmentVariable("HISTORY_DB") ?? "Data Source=tpulsehistory.db";
+                services.AddDbContext<HistoryDbContext>(options => options.UseSqlite(historyConn));
 
                 services.AddHostedService<ScheduledWorker>();
             })
@@ -31,23 +33,16 @@ public class Program
     }
 }
 
-public class ScheduledWorker : BackgroundService
+public class ScheduledWorker(IServiceProvider provider, TPulseApiClient pulseClient, IHttpClientFactory factory) : BackgroundService
 {
-    private readonly IServiceProvider _provider;
-    private readonly TPulseApiClient _pulseClient;
-    private readonly HttpClient _httpClient;
+    private readonly IServiceProvider _provider = provider;
+    private readonly TPulseApiClient _pulseClient = pulseClient;
+    private readonly HttpClient _httpClient = factory.CreateClient();
 
     // Cron expression по умолчанию: каждый день в полночь
     private readonly string _cron = "0 0 * * *";
 
-    public ScheduledWorker(IServiceProvider provider, TPulseApiClient pulseClient, IHttpClientFactory factory)
-    {
-        _provider = provider;
-        _pulseClient = pulseClient;
-        _httpClient = factory.CreateClient();
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+  protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var cronExpr = CronExpression.Parse(_cron, CronFormat.Standard);
         while (!stoppingToken.IsCancellationRequested)
@@ -71,7 +66,7 @@ public class ScheduledWorker : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<HistoryDbContext>();
 
         // ѕолучаем новые посты (проста€ логика: берЄм последние 100)
-        var posts = (await _pulseClient.GetPostsAsync(100, null)).Payload?.Items ?? new List<TPulse.Client.Model.Post>();
+        var posts = (await _pulseClient.GetPostsAsync(100, null)).Payload?.Items ?? [];
 
         foreach (var post in posts)
         {

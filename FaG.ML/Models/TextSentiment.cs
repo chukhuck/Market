@@ -1,6 +1,6 @@
 using Microsoft.ML.Data;
 
-namespace TPulse.ML.Models
+namespace FaG.ML.Models
 {
     public class TextSentiment
     {

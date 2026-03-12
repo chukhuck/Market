@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Http.Json;
-using TPulse.Data;
+using FaG.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +14,11 @@ app.MapPost("/evaluate", (PostRequest request) =>
 {
     // Заглушка: всегда возвращаем Emotion.None
     return Results.Json(new EvaluateResponse ( Emotion.None ));
+});
+
+app.MapGet("/test", () =>
+{
+  return "test";
 });
 
 app.Run();

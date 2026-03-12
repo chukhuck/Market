@@ -5,37 +5,38 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: tpulse/app:latest
-    command: ["dotnet", "/app/emotionapi/TPulse.EmotionApi.dll"]
+    image: fag/app:latest
+    command: ["dotnet", "/app/emotionapi/FaG.EmotionApi.dll"]
     ports:
       - "5000:5000"
     environment:
       - ASPNETCORE_URLS=http://0.0.0.0:5000
-      - HISTORY_DB=Data Source=/var/lib/tpulse/tpulsehistory.db
+      - FAG_DB=Data Source=/var/lib/fag/fag.db
       - TRAINER_DB=Data Source=/var/lib/tpulse/tpulsetrainer.db
     volumes:
       - ./data:/var/lib/tpulse
+      - ./data:/var/lib/fag
     restart: unless-stopped
 
   scheduler:
     build:
       context: .
       dockerfile: Dockerfile
-    image: tpulse/app:latest
-    command: ["dotnet", "/app/scheduler/TPulse.Scheduler.dll"]
+    image: fag/app:latest
+    command: ["dotnet", "/app/scheduler/FaG.Scheduler.dll"]
     depends_on:
       - emotionapi
     environment:
-      - HISTORY_DB=Data Source=/var/lib/tpulse/tpulsehistory.db
+      - FAG_DB=Data Source=/var/lib/fag/fag.db
     volumes:
-      - ./data:/var/lib/tpulse
+      - ./data:/var/lib/fag
     restart: unless-stopped
 
   web:
     build:
       context: .
-      dockerfile: TPulse.Web/Dockerfile
-    image: tpulse/web:latest
+      dockerfile: FaG.Web/Dockerfile
+    image: fag/web:latest
     ports:
       - "8080:80"
     depends_on:

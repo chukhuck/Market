@@ -8,12 +8,12 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Cronos" Version="0.11.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.4" />
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FaG.Data\FaG.Data.csproj" />
     <ProjectReference Include="..\TPulse.Client\TPulse.Client.csproj" />
-    <ProjectReference Include="..\TPulse.Data\TPulse.Data.csproj" />
     <ProjectReference Include="..\TPulse.Downloader\TPulse.Downloader.csproj" />
-    <ProjectReference Include="..\TPulse.EmotionApi\TPulse.EmotionApi.csproj" />
   </ItemGroup>
 </Project>

@@ -8,6 +8,6 @@
     <PackageReference Include="Microsoft.ML" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TPulse.Data\TPulse.Data.csproj" />
+    <ProjectReference Include="..\FaG.Data\FaG.Data.csproj" />
   </ItemGroup>
 </Project>

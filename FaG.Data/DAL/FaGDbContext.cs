@@ -1,15 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using TPulse.Data;
 
-namespace TPulseHistoryDownloader.DAL
+namespace FaG.Data.DAL
 {
-  public class HistoryDbContext : DbContext
+  public class FaGDbContext : DbContext
   {
     public DbSet<UserPostEvaluation> UserPostEvaluations { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-      optionsBuilder.UseSqlite("Data Source=tpulsehistory.db");
+      optionsBuilder.UseSqlite("Data Source=fag.db");
     }
   }
 }

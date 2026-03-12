@@ -1,9 +1,9 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
-using TPulse.ML.Models;
-using TPulse.Data;
+using FaG.ML.Models;
+using FaG.Data;
 
-namespace TPulse.ML
+namespace FaG.ML
 {
     public class SentimentModelBuilder
     {

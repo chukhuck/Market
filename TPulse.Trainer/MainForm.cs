@@ -1,5 +1,5 @@
 using System.Text.Json;
-using TPulse.Data;
+using FaG.Data;
 using TPulse.Client;
 using TPulse.Client.Model;
 using TPulse.Trainer.DAL;

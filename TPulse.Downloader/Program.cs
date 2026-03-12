@@ -1,11 +1,11 @@
-﻿using TPulse.Data;
+﻿using FaG.Data;
+using FaG.Data.DAL;
 using TPulse.Client;
-using TPulseHistoryDownloader.DAL;
 
 class Program
 {
   private static TPulseApiClient? _pulseClient;
-  private static HistoryDbContext? _dbContext;
+  private static FaGDbContext? _dbContext;
   private static readonly DateTime _stopDate = new(2025, 1, 1);
 
   static async Task Main(string[] _args)
@@ -22,7 +22,7 @@ class Program
         "https://pulse-image-post.cdn-tinkoff.ru/{guid_image}-small.jpeg"
     );
 
-    _dbContext = new HistoryDbContext();
+    _dbContext = new FaGDbContext();
     _dbContext.Database.EnsureCreated();
   }
 
@@ -50,7 +50,7 @@ class Program
 
         var postsToSave = new List<UserPostEvaluation>();
 
-        foreach (var post in response.Payload.Items)
+        foreach (var post in response.Payload.Items.OrderByDescending(i=>i.Inserted))
         {
           if (post.Inserted >= _stopDate)
             flag = false;

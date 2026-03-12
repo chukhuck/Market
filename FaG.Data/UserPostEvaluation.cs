@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace TPulse.Data
+namespace FaG.Data
 {
   [Table("UserPostEvaluations")]
   public class UserPostEvaluation

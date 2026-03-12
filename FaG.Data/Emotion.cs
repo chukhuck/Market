@@ -1,4 +1,4 @@
-﻿namespace TPulse.Data
+﻿namespace FaG.Data
 {
   public enum Emotion
   {

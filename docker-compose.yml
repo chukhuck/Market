@@ -4,32 +4,28 @@ services:
   emotionapi:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: fag/app:latest
-    command: ["dotnet", "/app/emotionapi/FaG.EmotionApi.dll"]
+      dockerfile: FaG.EmotionApi/Dockerfile
+    image: fag/emotionapi:latest
     ports:
       - "5000:5000"
     environment:
-      - ASPNETCORE_URLS=http://0.0.0.0:5000
+      - ASPNETCORE_URLS=http://+:5000
       - FAG_DB=Data Source=/var/lib/fag/fag.db
-      - TRAINER_DB=Data Source=/var/lib/tpulse/tpulsetrainer.db
     volumes:
-      - ./data:/var/lib/tpulse
-      - ./data:/var/lib/fag
+      - ./data/fag:/var/lib/fag
     restart: unless-stopped
 
   scheduler:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: fag/app:latest
-    command: ["dotnet", "/app/scheduler/FaG.Scheduler.dll"]
+      dockerfile: FaG.Scheduler/Dockerfile
+    image: fag/scheduler:latest
     depends_on:
       - emotionapi
     environment:
       - FAG_DB=Data Source=/var/lib/fag/fag.db
     volumes:
-      - ./data:/var/lib/fag
+      - ./data/fag:/var/lib/fag
     restart: unless-stopped
 
   web:
@@ -42,15 +38,3 @@ services:
     depends_on:
       - emotionapi
     restart: unless-stopped
-
-# Notes:
-# - This compose file builds a single application image from the repository-level Dockerfile
-#   (which publishes all projects) and uses it to run the emotion API and scheduler by
-#   overriding the container command to start the required DLL.
-# - The Blazor WebAssembly app is built into a small nginx-based image using TPulse.Web/Dockerfile.
-# - SQLite files are created inside the containers by default. For persistence, map a host
-#   directory to a path inside the containers and update the connection strings in code to
-#   use that path, or bind a volume to the container working directory. Example for persistence:
-#     volumes:
-#       - ./data/emotion:/var/lib/tpulse
-#   and then change the EF Core connection string to: "Data Source=/var/lib/tpulse/tpulsehistory.db"

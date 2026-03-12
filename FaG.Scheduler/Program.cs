@@ -33,14 +33,14 @@ app.MapGet("/process-range", async (HttpContext ctx) =>
 {
   var q = ctx.Request.Query;
   if (!q.TryGetValue("start", out var startVals) || !q.TryGetValue("end", out var endVals))
-    return Results.BadRequest("Query parameters 'start' and 'end' are required");
+    return Results.BadRequest("Требуются параметры 'start' и 'end'");
 
   if (!TryParseDate(startVals[0], out var start) || !TryParseDate(endVals[0], out var end))
-    return Results.BadRequest("Failed to parse dates. Use ISO format, e.g. 2023-01-01T00:00:00Z.");
+    return Results.BadRequest("Невозможно распарсить даты. Используйте формат 2023-01-01T00:00:00Z.");
 
   try
   {
-    await Program.ProcessRangeAsync(ctx.RequestServices, start, end, ctx.RequestAborted);
+    await Program.ProcessPostsByRangeAsync(ctx.RequestServices, start, end, ctx.RequestAborted).ConfigureAwait(false);
     return Results.Ok(new { started = start, ended = end });
   }
   catch (OperationCanceledException)
@@ -72,7 +72,11 @@ static bool TryParseDate(string? s, out DateTime dt)
 
 public partial class Program
 {
-  public static async Task ProcessRangeAsync(IServiceProvider services, DateTime startUtc, DateTime endUtc, CancellationToken token)
+  public static async Task ProcessPostsByRangeAsync(
+    IServiceProvider services, 
+    DateTime startUtc, 
+    DateTime endUtc, 
+    CancellationToken token)
   {
     using var scope = services.CreateScope();
 
@@ -81,100 +85,59 @@ public partial class Program
 
     if (downloaders.Count == 0)
       return;
+    List<UserPostEvaluation> allPosts = await DownloadAllPostsAsync(
+                                                                      startUtc, 
+                                                                      endUtc, 
+                                                                      downloaders, 
+                                                                      token)
+                                              .ConfigureAwait(false);
 
-    var allPosts = new List<UserPostEvaluation>();
-
-    foreach (var dl in downloaders)
-    {
-      try
-      {
-        var list = await dl.DownloadPostsAsync(startUtc, endUtc, token);
-        if (list != null && list.Count > 0)
-          allPosts.AddRange(list);
-      }
-      catch
-      {
-      }
-
-      if (token.IsCancellationRequested)
-        break;
-    }
-
-    var byId = new Dictionary<Guid, UserPostEvaluation>();
-    foreach (var p in allPosts)
-    {
-      if (p.PostId == Guid.Empty)
-        continue;
-
-      if (!byId.TryGetValue(p.PostId, out var exist))
-        byId[p.PostId] = p;
-      else
-      {
-        if (p.EvaluationDate > exist.EvaluationDate)
-          byId[p.PostId] = p;
-      }
-    }
-
-    var evaluator = new SentimentEvaluator();
-
-    foreach (var p in byId.Values)
-    {
-      try
-      {
-        p.EvaluationDate = DateTime.UtcNow;
-        p.Emotion = evaluator.Evaluate(p.PostText ?? string.Empty);
-
-        var exists = await db.UserPostEvaluations.FirstOrDefaultAsync(x => x.PostId == p.PostId, token);
-        if (exists == null)
-        {
-          await db.UserPostEvaluations.AddAsync(p, token);
-        }
-        else
-        {
-          exists.Emotion = p.Emotion;
-          exists.EvaluationDate = p.EvaluationDate;
-          exists.PostText = p.PostText ?? exists.PostText;
-          exists.CommentsCount = p.CommentsCount;
-          exists.TotalReactions = p.TotalReactions;
-          exists.ReactionsJson = p.ReactionsJson ?? exists.ReactionsJson;
-          exists.AuthorId = p.AuthorId != Guid.Empty ? p.AuthorId : exists.AuthorId;
-          exists.AuthorNickname = string.IsNullOrEmpty(p.AuthorNickname) ? exists.AuthorNickname : p.AuthorNickname;
-          exists.Tickers = string.IsNullOrEmpty(p.Tickers) ? exists.Tickers : p.Tickers;
-        }
-      }
-      catch
-      {
-      }
-
-      if (token.IsCancellationRequested)
-        break;
-    }
-
-    await db.SaveChangesAsync(token);
-    // Compute Fear-Greed index for the day (date portion of startUtc)
+    Dictionary<Guid, UserPostEvaluation> byId = ClearPosts(allPosts);
+    await EvaluateAndSavePostAsync(db, byId, token).ConfigureAwait(false);
+    await CalculateAndSaveFearAndGreadIndexAsync(startUtc, db, token).ConfigureAwait(false);
+  }
+  private static async Task CalculateAndSaveFearAndGreadIndexAsync(
+    DateTime startUtc, 
+    FaGDbContext db, 
+    CancellationToken token)
+  {
     try
     {
       var model = new SimpleIndexModel();
 
-      // use UTC date from startUtc
       var date = startUtc.Date;
 
-      // counts for that date (posts whose EvaluationDate in UTC fall into that date)
       var from = date;
       var to = date.AddDays(1);
 
-      var total = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to, token);
-      var positive = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Positive, token);
-      var negative = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Negative, token);
-      var neutral = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Neutral, token);
-      var unrated = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.None, token);
+      var total = await db.UserPostEvaluations
+        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to, token)
+        .ConfigureAwait(false);
+
+      var positive = await db.UserPostEvaluations
+        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Positive, token)
+        .ConfigureAwait(false);
+
+      var negative = await db.UserPostEvaluations
+        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Negative, token)
+        .ConfigureAwait(false);
+
+      var neutral = await db.UserPostEvaluations
+        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Neutral, token)
+        .ConfigureAwait(false);
+
+      var unrated = await db.UserPostEvaluations
+        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.None, token)
+        .ConfigureAwait(false);
 
       var scoreInt = model.ComputeScoreInt(positive, negative, neutral);
       var effective = total - unrated;
       var scoreNorm = model.Normalize(scoreInt, effective);
 
-      // upsert index record for this date and model
-      var existing = await db.FearGreedIndices.FirstOrDefaultAsync(i => i.DateUtc == date && i.ModelName == model.Name, token);
+      var existing = await db.FearGreedIndices
+        .FirstOrDefaultAsync(i => i.DateUtc == date && i.ModelName == model.Name, token)
+        .ConfigureAwait(false);
+
       if (existing == null)
       {
         var rec = new FaG.Data.DAL.FearGreedIndex
@@ -189,7 +152,7 @@ public partial class Program
           UnratedPosts = unrated,
           ModelName = model.Name
         };
-        await db.FearGreedIndices.AddAsync(rec, token);
+        await db.FearGreedIndices.AddAsync(rec, token).ConfigureAwait(false);
       }
       else
       {
@@ -203,12 +166,101 @@ public partial class Program
         existing.ModelName = model.Name;
       }
 
-      await db.SaveChangesAsync(token);
+      await db.SaveChangesAsync(token).ConfigureAwait(false);
     }
     catch
     {
-      // ignore index computation errors
     }
+  }
+  private static async Task EvaluateAndSavePostAsync(
+    FaGDbContext db, 
+    Dictionary<Guid, UserPostEvaluation> byId, 
+    CancellationToken token)
+  {
+    var evaluator = new SentimentEvaluator();
+
+    foreach (var post in byId.Values)
+    {
+      try
+      {
+        post.EvaluationDate = DateTime.UtcNow;
+        post.Emotion = evaluator.Evaluate(post.PostText ?? string.Empty);
+
+        var exists = await db.UserPostEvaluations
+          .FirstOrDefaultAsync(x => x.PostId == post.PostId, token)
+          .ConfigureAwait(false);
+
+        if (exists == null)
+        {
+          await db.UserPostEvaluations.AddAsync(post, token).ConfigureAwait(false);
+        }
+        else
+        {
+          exists.Emotion = post.Emotion;
+          exists.EvaluationDate = post.EvaluationDate;
+          exists.PostText = post.PostText ?? exists.PostText;
+          exists.CommentsCount = post.CommentsCount;
+          exists.TotalReactions = post.TotalReactions;
+          exists.ReactionsJson = post.ReactionsJson ?? exists.ReactionsJson;
+          exists.AuthorId = post.AuthorId != Guid.Empty ? post.AuthorId : exists.AuthorId;
+          exists.AuthorNickname = string.IsNullOrEmpty(post.AuthorNickname) ? exists.AuthorNickname : post.AuthorNickname;
+          exists.Tickers = string.IsNullOrEmpty(post.Tickers) ? exists.Tickers : post.Tickers;
+        }
+      }
+      catch
+      {
+      }
+
+      if (token.IsCancellationRequested)
+        break;
+    }
+
+    await db.SaveChangesAsync(token).ConfigureAwait(false);
+  }
+  private static Dictionary<Guid, UserPostEvaluation> ClearPosts(List<UserPostEvaluation> allPosts)
+  {
+    var byId = new Dictionary<Guid, UserPostEvaluation>();
+    foreach (var post in allPosts)
+    {
+      if (post.PostId == Guid.Empty)
+        continue;
+
+      if (!byId.TryGetValue(post.PostId, out var exist))
+        byId[post.PostId] = post;
+      else
+      {
+        if (post.EvaluationDate > exist.EvaluationDate)
+          byId[post.PostId] = post;
+      }
+    }
+
+    return byId;
+  }
+  private static async Task<List<UserPostEvaluation>> DownloadAllPostsAsync(
+    DateTime startUtc, 
+    DateTime endUtc, 
+    List<IFagDownloader> downloaders, 
+    CancellationToken token)
+  {
+    var allPosts = new List<UserPostEvaluation>();
+
+    foreach (var dl in downloaders)
+    {
+      try
+      {
+        var posts = await dl.DownloadPostsAsync(startUtc, endUtc, token).ConfigureAwait(false);
+        if (posts != null && posts.Count > 0)
+          allPosts.AddRange(posts);
+      }
+      catch
+      {
+      }
+
+      if (token.IsCancellationRequested)
+        break;
+    }
+
+    return allPosts;
   }
 }
 
@@ -225,10 +277,8 @@ public class ScheduledWorker : BackgroundService
     var cron = configuration["Scheduler:Cron"] ?? "15 0 * * *"; // default daily at 00:15
     _cronExpr = CronExpression.Parse(cron, CronFormat.Standard);
 
-    // Assume Moscow timezone
     _timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow");
   }
-
   protected override async Task ExecuteAsync(CancellationToken stoppingToken)
   {
     while (!stoppingToken.IsCancellationRequested)
@@ -251,7 +301,6 @@ public class ScheduledWorker : BackgroundService
         }
       }
 
-      // compute previous day window based on next occurrence local date
       var occLocal = next.Value;
       var startLocal = occLocal.Date.AddDays(-1);
       var endLocal = occLocal.Date;
@@ -259,7 +308,7 @@ public class ScheduledWorker : BackgroundService
       var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal, _timeZone);
       var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal, _timeZone);
 
-      await Program.ProcessRangeAsync(_provider, startUtc, endUtc, stoppingToken);
+      await Program.ProcessPostsByRangeAsync(_provider, startUtc, endUtc, stoppingToken).ConfigureAwait(false);
     }
   }
 }

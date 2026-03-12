@@ -5,17 +5,14 @@ namespace TPulse.Client
 {
   public class TPulseDownloader : IFagDownloader
   {
-    public required TPulseApiClient _pulseClient;
-    public required FaGDbContext _dbContext;
+    private readonly TPulseApiClient _pulseClient;
     private string? nextCursor = null;
 
-    public TPulseDownloader(TPulseApiClient pulseApiClient, FaGDbContext context)
+    public TPulseDownloader(TPulseApiClient pulseApiClient)
     {
-      ArgumentNullException.ThrowIfNull(nameof(pulseApiClient));
-      ArgumentNullException.ThrowIfNull(nameof(context));
+      ArgumentNullException.ThrowIfNull(pulseApiClient);
 
       _pulseClient = pulseApiClient;
-      _dbContext = context;
     }
     public async Task<List<UserPostEvaluation>> DownloadPostsAsync(DateTime start, DateTime end)
     {     

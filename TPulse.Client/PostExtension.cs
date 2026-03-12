@@ -1,12 +1,16 @@
-﻿namespace FaG.Data
+﻿using FaG.Data.DAL;
+using TPulse.Client.Model;
+
+namespace TPulse.Client
 {
   public static class PostExtension
   {
-    public static UserPostEvaluation ToPostEvaluation(this TPulse.Client.Model.Post post, Emotion emotion)
+    public static UserPostEvaluation ToPostEvaluation(this Post post, Emotion emotion)
     {
       return new UserPostEvaluation
       {
         PostId = post.Id,
+        Source = "TPulse",
         EvaluationDate = DateTime.Now,
         Emotion = emotion,
         AuthorId = post.Owner?.Id ?? Guid.Empty,

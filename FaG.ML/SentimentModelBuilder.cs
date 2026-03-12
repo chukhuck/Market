@@ -1,7 +1,7 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using FaG.ML.Models;
-using FaG.Data;
+using FaG.Data.DAL;
 
 namespace FaG.ML
 {

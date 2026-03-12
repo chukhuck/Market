@@ -1,5 +1,5 @@
 using System.Text.Json;
-using FaG.Data;
+using FaG.Data.DAL;
 using TPulse.Client;
 using TPulse.Client.Model;
 using TPulse.Trainer.DAL;
@@ -19,14 +19,13 @@ public partial class MainForm : Form
   private const string ImageUrl = "https://pulse-image-post.cdn-tinkoff.ru/{guid_image}-small.jpeg";
   private const string defaultNextCursor = "1772561236013000:OLD:0303232614";
 
-  // Конфиг рядом с exe (не в AppData)
+  
   private readonly string _configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
 
   public MainForm()
   {
     InitializeComponent();
 
-    // улучшение отображения emoji: попытка использовать шрифт с поддержкой emoji
     try
     {
       var preferred = "Segoe UI Emoji";

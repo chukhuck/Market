@@ -14,6 +14,5 @@
   <ItemGroup>
     <ProjectReference Include="..\FaG.Data\FaG.Data.csproj" />
     <ProjectReference Include="..\TPulse.Client\TPulse.Client.csproj" />
-    <ProjectReference Include="..\TPulse.Downloader\TPulse.Downloader.csproj" />
   </ItemGroup>
 </Project>

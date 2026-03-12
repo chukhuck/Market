@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Http.Json;
-using FaG.Data;
+using FaG.Data.DAL;
 
 var builder = WebApplication.CreateBuilder(args);
 

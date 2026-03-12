@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using FaG.Data;
+using FaG.Data.DAL;
 
 namespace TPulse.Trainer.DAL
 {

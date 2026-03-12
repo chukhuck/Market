@@ -5,7 +5,7 @@ using TPulse.Client.Model;
 
 namespace TPulse.Client
 {
-  public class TPulseApiClient
+  public class TPulseApiClient 
   {
     private readonly HttpClient _httpClient;
     private readonly string _broadcastUrl;

@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\FaG.Data\FaG.Data.csproj" />
+	</ItemGroup>
+
 </Project>

@@ -1,4 +1,4 @@
-﻿namespace FaG.Data
+﻿namespace FaG.Data.DAL
 {
   public enum Emotion
   {

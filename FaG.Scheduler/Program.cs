@@ -1,5 +1,4 @@
 using Cronos;
-using FaG.Data;
 using FaG.Data.DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -186,7 +185,7 @@ public class ScheduledWorker(IServiceProvider provider, TPulseApiClient pulseCli
       if (list.Count > 0)
       {
         // Map and save
-        await db.UserPostEvaluations.AddRangeAsync(list.Select(p => p.ToPostEvaluation(Emotion.None)));
+        //await db.UserPostEvaluations.AddRangeAsync(list.Select(p => p.ToPostEvaluation(Emotion.None)));
         await db.SaveChangesAsync(token);
       }
 

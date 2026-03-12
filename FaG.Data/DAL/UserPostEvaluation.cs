@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace FaG.Data
+namespace FaG.Data.DAL
 {
   [Table("UserPostEvaluations")]
   public class UserPostEvaluation
@@ -18,5 +18,6 @@ namespace FaG.Data
     public int TotalReactions { get; set; }
     public string ReactionsJson { get; set; } = string.Empty;
     public string Tickers { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
   }
 }

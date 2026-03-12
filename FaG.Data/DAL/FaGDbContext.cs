@@ -5,6 +5,7 @@ namespace FaG.Data.DAL
   public class FaGDbContext : DbContext
   {
     public DbSet<UserPostEvaluation> UserPostEvaluations { get; set; }
+    public DbSet<FearGreedIndex> FearGreedIndices { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

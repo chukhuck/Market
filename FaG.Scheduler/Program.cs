@@ -1,6 +1,7 @@
 ﻿using Cronos;
 using FaG.Common;
 using FaG.Data.DAL;
+using FaG.Data.IndexModel;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Net;
@@ -150,6 +151,64 @@ public partial class Program
     }
 
     await db.SaveChangesAsync(token);
+    // Compute Fear-Greed index for the day (date portion of startUtc)
+    try
+    {
+      var model = new SimpleIndexModel();
+
+      // use UTC date from startUtc
+      var date = startUtc.Date;
+
+      // counts for that date (posts whose EvaluationDate in UTC fall into that date)
+      var from = date;
+      var to = date.AddDays(1);
+
+      var total = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to, token);
+      var positive = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Positive, token);
+      var negative = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Negative, token);
+      var neutral = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Neutral, token);
+      var unrated = await db.UserPostEvaluations.CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.None, token);
+
+      var scoreInt = model.ComputeScoreInt(positive, negative, neutral);
+      var effective = total - unrated;
+      var scoreNorm = model.Normalize(scoreInt, effective);
+
+      // upsert index record for this date and model
+      var existing = await db.FearGreedIndices.FirstOrDefaultAsync(i => i.DateUtc == date && i.ModelName == model.Name, token);
+      if (existing == null)
+      {
+        var rec = new FaG.Data.DAL.FearGreedIndex
+        {
+          DateUtc = date,
+          ScoreInt = scoreInt,
+          ScoreNormalized = scoreNorm,
+          TotalPosts = total,
+          PositivePosts = positive,
+          NegativePosts = negative,
+          NeutralPosts = neutral,
+          UnratedPosts = unrated,
+          ModelName = model.Name
+        };
+        await db.FearGreedIndices.AddAsync(rec, token);
+      }
+      else
+      {
+        existing.ScoreInt = scoreInt;
+        existing.ScoreNormalized = scoreNorm;
+        existing.TotalPosts = total;
+        existing.PositivePosts = positive;
+        existing.NegativePosts = negative;
+        existing.NeutralPosts = neutral;
+        existing.UnratedPosts = unrated;
+        existing.ModelName = model.Name;
+      }
+
+      await db.SaveChangesAsync(token);
+    }
+    catch
+    {
+      // ignore index computation errors
+    }
   }
 }
 

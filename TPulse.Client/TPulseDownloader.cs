@@ -1,5 +1,10 @@
 ﻿using FaG.Common;
 using FaG.Data.DAL;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace TPulse.Client
 {
@@ -14,12 +19,12 @@ namespace TPulse.Client
 
       _pulseClient = pulseApiClient;
     }
-    public async Task<List<UserPostEvaluation>> DownloadPostsAsync(DateTime start, DateTime end)
+    public async Task<List<UserPostEvaluation>> DownloadPostsAsync(DateTime start, DateTime end, CancellationToken token = default)
     {     
       var posts = new List<UserPostEvaluation>();
       bool flag = true;
 
-      while (flag)
+      while (flag && !token.IsCancellationRequested)
       {
         try
         {

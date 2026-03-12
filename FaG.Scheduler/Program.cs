@@ -1,4 +1,5 @@
 ﻿using Cronos;
+using FaG.Common;
 using FaG.Data.DAL;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -18,13 +19,15 @@ builder.Services.AddSingleton(new TPulseApiClient(
 var fagConn = Environment.GetEnvironmentVariable("FAG_DB") ?? "Data Source=fag.db";
 builder.Services.AddDbContext<FaGDbContext>(options => options.UseSqlite(fagConn));
 
+// Register available downloaders
+builder.Services.AddTransient<IFagDownloader, TPulseDownloader>();
+
 builder.Services.AddHostedService<ScheduledWorker>();
 
 var app = builder.Build();
 
 app.MapGet("/", () => Results.Ok("FaG.Scheduler Web API is running"));
 
-// Endpoint to trigger processing for arbitrary range via query parameters: ?start=2023-01-01T00:00:00Z&end=2023-01-02T00:00:00Z
 app.MapGet("/process-range", async (HttpContext ctx) =>
 {
   var q = ctx.Request.Query;
@@ -71,23 +74,54 @@ public partial class Program
   public static async Task ProcessRangeAsync(IServiceProvider services, DateTime startUtc, DateTime endUtc, CancellationToken token)
   {
     using var scope = services.CreateScope();
-    var pulse = scope.ServiceProvider.GetRequiredService<TPulseApiClient>();
-    var db = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
 
-    var downloader = new TPulseDownloader(pulse);
+    var db = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
+    var downloaders = scope.ServiceProvider.GetServices<IFagDownloader>().ToList();
+
+    if (downloaders.Count == 0)
+      return;
+
+    var allPosts = new List<UserPostEvaluation>();
+
+    foreach (var dl in downloaders)
+    {
+      try
+      {
+        var list = await dl.DownloadPostsAsync(startUtc, endUtc, token);
+        if (list != null && list.Count > 0)
+          allPosts.AddRange(list);
+      }
+      catch
+      {
+      }
+
+      if (token.IsCancellationRequested)
+        break;
+    }
+
+    var byId = new Dictionary<Guid, UserPostEvaluation>();
+    foreach (var p in allPosts)
+    {
+      if (p.PostId == Guid.Empty)
+        continue;
+
+      if (!byId.TryGetValue(p.PostId, out var exist))
+        byId[p.PostId] = p;
+      else
+      {
+        if (p.EvaluationDate > exist.EvaluationDate)
+          byId[p.PostId] = p;
+      }
+    }
+
     var evaluator = new SentimentEvaluator();
 
-    var posts = await downloader.DownloadPostsAsync(startUtc, endUtc);
-
-    foreach (var p in posts)
+    foreach (var p in byId.Values)
     {
       try
       {
         p.EvaluationDate = DateTime.UtcNow;
         p.Emotion = evaluator.Evaluate(p.PostText ?? string.Empty);
-
-        if (p.PostId == Guid.Empty)
-          continue;
 
         var exists = await db.UserPostEvaluations.FirstOrDefaultAsync(x => x.PostId == p.PostId, token);
         if (exists == null)
@@ -110,6 +144,9 @@ public partial class Program
       catch
       {
       }
+
+      if (token.IsCancellationRequested)
+        break;
     }
 
     await db.SaveChangesAsync(token);

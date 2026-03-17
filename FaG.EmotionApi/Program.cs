@@ -21,6 +21,8 @@ app.MapGet("/test", () =>
   return "test";
 });
 
+app.MapGet("/", () => Results.Ok("FaG.EmotionApi is running"));
+
 app.Run();
 
 public record PostRequest(string Text);

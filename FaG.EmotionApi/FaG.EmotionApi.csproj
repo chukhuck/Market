@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <UserSecretsId>abb3afbf-1f74-425f-b4e1-f721b7654d96</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />

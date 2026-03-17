@@ -1,40 +1,44 @@
 version: '3.8'
 
 services:
+  fagpostgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: fagdb
+      POSTGRES_USER: faguser
+      POSTGRES_PASSWORD: fagpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
   emotionapi:
     build:
       context: .
       dockerfile: FaG.EmotionApi/Dockerfile
-    image: fag/emotionapi:latest
+    image: chukhuck/fag/emotionapi:latest
     ports:
-      - "5000:5000"
+      - "5000:8080"
     environment:
-      - ASPNETCORE_URLS=http://+:5000
-      - FAG_DB=Data Source=/var/lib/fag/fag.db
-    volumes:
-      - ./data/fag:/var/lib/fag
+      - ASPNETCORE_URLS=http://+:8080
     restart: unless-stopped
 
   scheduler:
     build:
       context: .
       dockerfile: FaG.Scheduler/Dockerfile
-    image: fag/scheduler:latest
+    image: chukhuck/fag/schedulerapi:latest
+    ports:
+      - "5002:8080"
     depends_on:
+      - fagpostgres
       - emotionapi
     environment:
-      - FAG_DB=Data Source=/var/lib/fag/fag.db
-    volumes:
-      - ./data/fag:/var/lib/fag
+      - ASPNETCORE_URLS=http://+:8080
+      - FAG_DB=Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword
+      - EMOTION_API_URL=http://emotionapi:8080
     restart: unless-stopped
 
-  web:
-    build:
-      context: .
-      dockerfile: FaG.Web/Dockerfile
-    image: fag/web:latest
-    ports:
-      - "8080:80"
-    depends_on:
-      - emotionapi
-    restart: unless-stopped
+volumes:
+  postgres_data:

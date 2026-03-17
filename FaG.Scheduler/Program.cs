@@ -17,8 +17,10 @@ builder.Services.AddSingleton(new TPulseApiClient(
     "https://pulse-image-post.cdn-tinkoff.ru/{guid_image}-small.jpeg"
 ));
 
-var fagConn = Environment.GetEnvironmentVariable("FAG_DB") ?? "Data Source=fag.db";
-builder.Services.AddDbContext<FaGDbContext>(options => options.UseSqlite(fagConn));
+var fagConn = Environment.GetEnvironmentVariable("FAG_DB") ??
+    "Host=localhost;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword";
+
+builder.Services.AddDbContext<FaGDbContext>(options => options.UseNpgsql(fagConn));
 
 // Register available downloaders
 builder.Services.AddTransient<IFagDownloader, TPulseDownloader>();
@@ -26,6 +28,22 @@ builder.Services.AddTransient<IFagDownloader, TPulseDownloader>();
 builder.Services.AddHostedService<ScheduledWorker>();
 
 var app = builder.Build();
+
+// Применение миграций БД
+using (var scope = app.Services.CreateScope())
+{
+  var context = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
+  try
+  {
+    context.Database.Migrate();
+    Console.WriteLine("Database migrations applied successfully.");
+  }
+  catch (Exception ex)
+  {
+    Console.WriteLine($"Error applying database migrations: {ex.Message}");
+    throw;
+  }
+}
 
 app.MapGet("/", () => Results.Ok("FaG.Scheduler Web API is running"));
 
@@ -207,8 +225,9 @@ public partial class Program
           exists.Tickers = string.IsNullOrEmpty(post.Tickers) ? exists.Tickers : post.Tickers;
         }
       }
-      catch
+      catch(Exception ex)
       {
+        Console.WriteLine(ex.ToString());
       }
 
       if (token.IsCancellationRequested)
@@ -283,7 +302,7 @@ public class ScheduledWorker : BackgroundService
   {
     while (!stoppingToken.IsCancellationRequested)
     {
-      var nowLocal = DateTime.Now;
+      var nowLocal = DateTime.UtcNow;
       var next = _cronExpr.GetNextOccurrence(nowLocal, _timeZone);
       if (next == null)
         break;

@@ -40,5 +40,19 @@ services:
       - EMOTION_API_URL=http://emotionapi:8080
     restart: unless-stopped
 
+  dashboard:
+    build:
+      context: .
+      dockerfile: FaG.Dashboard/Dockerfile  # Указываем путь к Dockerfile
+    image: chukhuck/fag/dashboard:latest
+    ports:
+      - "5001:80"  # Порт для Blazor-приложения
+    depends_on:
+      - fagpostgres  # Зависит от БД
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DefaultConnection=Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword
+    restart: unless-stopped
+
 volumes:
   postgres_data:

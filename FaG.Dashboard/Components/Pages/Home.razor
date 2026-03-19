@@ -1,0 +1,44 @@
+﻿@page "/"
+@inject IStatisticsService StatisticsService
+@using FaG.Dashboard.Services
+
+<PageTitle>Dashboard</PageTitle>
+
+<h3>Статистика UserPostEvaluations</h3>
+
+@if (_statistics == null)
+{
+    <p>Загрузка...</p>
+}
+else
+{
+    <div>
+        <span >
+            <strong>Всего записей:</strong> @_statistics.TotalCount
+        </span>
+        <span >
+            <strong>Мин. дата:</strong> @(_statistics.MinDate?.ToString("yyyy-MM-dd") ?? "Нет данных")
+        </span>
+        <span >
+            <strong>Макс. дата:</strong> @(_statistics.MaxDate?.ToString("yyyy-MM-dd") ?? "Нет данных")
+        </span>
+        <button class="btn btn-primary">Click me</button>
+    </div>
+}
+
+@code {
+    private StatisticsResult? _statistics = null; 
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _statistics = await StatisticsService.GetStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки статистики: {ex.Message}");
+            _statistics = new StatisticsResult(); 
+        }
+    }
+}

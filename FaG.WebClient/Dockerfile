@@ -26,4 +26,6 @@ RUN dotnet publish "./FaG.WebClient.csproj" -c $BUILD_CONFIGURATION -o /app/publ
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+# Убеждаемся, что права на wwwroot правильные
+#RUN mkdir -p /app/wwwroot && chmod 755 /app/wwwroot
 ENTRYPOINT ["dotnet", "FaG.WebClient.dll"]

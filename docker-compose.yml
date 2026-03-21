@@ -39,35 +39,19 @@ services:
       - EMOTION_API_URL=http://emotionapi:8080
     restart: unless-stopped
 
-  dashboard:
-    build:
-      context: .
-      dockerfile: FaG.Dashboard/Dockerfile
-    image: chukhuck/fag/dashboard:latest
-    ports:
-      - "5001:80"
-    depends_on:
-      - fagpostgres
-      - scheduler  
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - DefaultConnection=Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword
-      - SCHEDULER_API_URL=http://scheduler:8080 
-    restart: unless-stopped
-
   web:
     build:
       context: .
-      dockerfile: FaG.Web/Dockerfile
+      dockerfile: FaG.WebClient/Dockerfile
     image: chukhuck/fag/web:latest
     ports:
-      - "5010:80"
+      - "5004:8080"
     depends_on:
       - fagpostgres
       - scheduler  
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - DefaultConnection=Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword
+      - FAG_DB=Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword
       - SCHEDULER_API_URL=http://scheduler:8080 
     restart: unless-stopped
 

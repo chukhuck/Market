@@ -11,8 +11,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // Строка подключения (такая же, как в scheduler/emotionapi)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Host=localhost;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword";//fagpostgres
+var connectionString = Environment.GetEnvironmentVariable("FAG_DB")
+    ?? "Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword";//fagpostgres
 
 // Регистрируем существующий DbContext из FaG.Data
 builder.Services.AddDbContext<FaGDbContext>(options =>

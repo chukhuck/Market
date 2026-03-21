@@ -1,0 +1,102 @@
+﻿@page "/manager"
+@inject IStatisticsService StatisticsService
+@using FaG.WebClient.Services
+@rendermode InteractiveServer
+
+<PageTitle>Manager</PageTitle>
+
+<h1>Управление БД</h1>
+
+@if (_isLoading)
+{
+    <div class="alert alert-info">Загрузка...</div>
+}
+else if (_statistics == null)
+{
+    <p>Загрузка...</p>
+}
+else
+{
+    <div>
+        <span>
+            <strong>Всего записей:</strong> @_statistics.TotalCount
+        </span>
+        <span>
+            <strong>Мин. дата:</strong> @(_statistics.MinDate?.ToString("yyyy-MM-dd") ?? "Нет данных")
+        </span>
+        <span>
+            <strong>Макс. дата:</strong> @(_statistics.MaxDate?.ToString("yyyy-MM-dd") ?? "Нет данных")
+        </span>
+    </div>
+}
+
+<button class="btn btn-primary">Click me</button>
+
+@code {
+    private StatisticsResult? _statistics = null;
+    private DateTime? _startDate = DateTime.Now.AddDays(-7);
+    private DateTime? _endDate = DateTime.Now;
+    private bool _isLoading = false;
+
+    [Inject]
+    private IConfiguration Configuration { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _statistics = await StatisticsService.GetStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки статистики: {ex.Message}");
+            _statistics = new StatisticsResult();
+        }
+    }
+
+    private async Task HandleProcessRange()
+    {
+        if (!_startDate.HasValue || !_endDate.HasValue)
+        {
+            return;
+        }
+
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Получаем URL из конфигурации
+            var schedulerUrl = Configuration["SCHEDULER_API_URL"]
+                ?? "http://scheduler:8080";
+
+            using var httpClient = new HttpClient();
+            var startFormatted = _startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var endFormatted = _endDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+            // Формируем полный URL
+            var fullUrl = $"{schedulerUrl}/process-range?start={startFormatted}&end={endFormatted}";
+
+            var response = await httpClient.GetAsync(fullUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _statistics = await StatisticsService.GetStatisticsAsync();
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Ошибка API: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при вызове API: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿using FaG.Dashboard.Services;
+﻿using FaG.WebClient.Services;
 using FaG.Data; 
 using FaG.Data.DAL;
 using Microsoft.EntityFrameworkCore;

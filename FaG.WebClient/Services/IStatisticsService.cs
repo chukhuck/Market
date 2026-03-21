@@ -1,4 +1,4 @@
-﻿namespace FaG.Dashboard.Services
+﻿namespace FaG.WebClient.Services
 {
   public interface IStatisticsService
   {

@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   fagpostgres:
     image: postgres:15
@@ -43,16 +42,35 @@ services:
   dashboard:
     build:
       context: .
-      dockerfile: FaG.Dashboard/Dockerfile  # Указываем путь к Dockerfile
+      dockerfile: FaG.Dashboard/Dockerfile
     image: chukhuck/fag/dashboard:latest
     ports:
-      - "5001:80"  # Порт для Blazor-приложения
+      - "5001:80"
     depends_on:
-      - fagpostgres  # Зависит от БД
+      - fagpostgres
+      - scheduler  
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - DefaultConnection=Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword
+      - SCHEDULER_API_URL=http://scheduler:8080 
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: FaG.Web/Dockerfile
+    image: chukhuck/fag/web:latest
+    ports:
+      - "5010:80"
+    depends_on:
+      - fagpostgres
+      - scheduler  
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DefaultConnection=Host=fagpostgres;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword
+      - SCHEDULER_API_URL=http://scheduler:8080 
     restart: unless-stopped
 
 volumes:
   postgres_data:
+

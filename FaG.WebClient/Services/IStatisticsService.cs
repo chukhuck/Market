@@ -9,8 +9,10 @@
 
   public class StatisticsResult
   {
-    public int TotalCount { get; set; }
-    public DateTime? MinDate { get; set; }
-    public DateTime? MaxDate { get; set; }
+    public int PostTotalCount { get; set; }
+    public DateTime? PostMinDate { get; set; }
+    public DateTime? PostMaxDate { get; set; }
+    public DateTime? IndexMinDate { get; set; }
+    public DateTime? IndexMaxDate { get; set; }
   }
 }

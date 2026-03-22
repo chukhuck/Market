@@ -36,11 +36,18 @@ namespace FaG.WebClient.Services
       var maxDate = await _context.UserPostEvaluations
           .MaxAsync(u => u.PostDate);
 
+      var indexMinDate = await _context.FearGreedIndices
+          .MinAsync(u => u.DateUtc);
+      var indexMaxDate = await _context.FearGreedIndices
+          .MaxAsync(u => u.DateUtc);
+
       return new StatisticsResult
       {
-        TotalCount = totalCount,
-        MinDate = minDate,
-        MaxDate = maxDate
+        PostTotalCount = totalCount,
+        PostMinDate = minDate,
+        PostMaxDate = maxDate,
+        IndexMinDate = indexMinDate,
+        IndexMaxDate = indexMaxDate
       };
     }
   }

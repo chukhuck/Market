@@ -91,9 +91,9 @@ static bool TryParseDate(string? s, out DateTime dt)
 public partial class Program
 {
   public static async Task ProcessPostsByRangeAsync(
-    IServiceProvider services, 
-    DateTime startUtc, 
-    DateTime endUtc, 
+    IServiceProvider services,
+    DateTime startUtc,
+    DateTime endUtc,
     CancellationToken token)
   {
     using var scope = services.CreateScope();
@@ -104,19 +104,20 @@ public partial class Program
     if (downloaders.Count == 0)
       return;
     List<UserPostEvaluation> allPosts = await DownloadAllPostsAsync(
-                                                                      startUtc, 
-                                                                      endUtc, 
-                                                                      downloaders, 
+                                                                      startUtc,
+                                                                      endUtc,
+                                                                      downloaders,
                                                                       token)
                                               .ConfigureAwait(false);
 
     Dictionary<Guid, UserPostEvaluation> byId = ClearPosts(allPosts);
     await EvaluateAndSavePostAsync(db, byId, token).ConfigureAwait(false);
-    await CalculateAndSaveFearAndGreadIndexAsync(startUtc, db, token).ConfigureAwait(false);
+    await CalculateAndSaveFearAndGreadIndexAsync(startUtc, endUtc, db, token).ConfigureAwait(false);
   }
   private static async Task CalculateAndSaveFearAndGreadIndexAsync(
-    DateTime startUtc, 
-    FaGDbContext db, 
+    DateTime startUtc,
+    DateTime endUtc,
+    FaGDbContext db,
     CancellationToken token)
   {
     try
@@ -125,74 +126,78 @@ public partial class Program
 
       var date = startUtc.Date;
 
-      var from = date;
-      var to = date.AddDays(1);
-
-      var total = await db.UserPostEvaluations
-        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to, token)
-        .ConfigureAwait(false);
-
-      var positive = await db.UserPostEvaluations
-        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Positive, token)
-        .ConfigureAwait(false);
-
-      var negative = await db.UserPostEvaluations
-        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Negative, token)
-        .ConfigureAwait(false);
-
-      var neutral = await db.UserPostEvaluations
-        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.Neutral, token)
-        .ConfigureAwait(false);
-
-      var unrated = await db.UserPostEvaluations
-        .CountAsync(x => x.EvaluationDate >= from && x.EvaluationDate < to && x.Emotion == FaG.Data.DAL.Emotion.None, token)
-        .ConfigureAwait(false);
-
-      var scoreInt = model.ComputeScoreInt(positive, negative, neutral);
-      var effective = total - unrated;
-      var scoreNorm = model.Normalize(scoreInt, effective);
-
-      var existing = await db.FearGreedIndices
-        .FirstOrDefaultAsync(i => i.DateUtc == date && i.ModelName == model.Name, token)
-        .ConfigureAwait(false);
-
-      if (existing == null)
+      while (date < endUtc.Date)
       {
-        var rec = new FaG.Data.DAL.FearGreedIndex
+        var from = date;
+        var to = date.AddDays(1);
+
+        var total = await db.UserPostEvaluations
+          .CountAsync(x => x.PostDate >= from && x.PostDate < to, token)
+          .ConfigureAwait(false);
+
+        var positive = await db.UserPostEvaluations
+          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.Positive, token)
+          .ConfigureAwait(false);
+
+        var negative = await db.UserPostEvaluations
+          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.Negative, token)
+          .ConfigureAwait(false);
+
+        var neutral = await db.UserPostEvaluations
+          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.Neutral, token)
+          .ConfigureAwait(false);
+
+        var unrated = await db.UserPostEvaluations
+          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.None, token)
+          .ConfigureAwait(false);
+
+        var scoreInt = model.ComputeScoreInt(positive, negative, neutral);
+        var effective = total - unrated;
+        var scoreNorm = model.Normalize(scoreInt, effective);
+
+        var existing = await db.FearGreedIndices
+          .FirstOrDefaultAsync(i => i.DateUtc == date && i.ModelName == model.Name, token)
+          .ConfigureAwait(false);
+
+        if (existing == null)
         {
-          DateUtc = date,
-          ScoreInt = scoreInt,
-          ScoreNormalized = scoreNorm,
-          TotalPosts = total,
-          PositivePosts = positive,
-          NegativePosts = negative,
-          NeutralPosts = neutral,
-          UnratedPosts = unrated,
-          ModelName = model.Name
-        };
-        await db.FearGreedIndices.AddAsync(rec, token).ConfigureAwait(false);
-      }
-      else
-      {
-        existing.ScoreInt = scoreInt;
-        existing.ScoreNormalized = scoreNorm;
-        existing.TotalPosts = total;
-        existing.PositivePosts = positive;
-        existing.NegativePosts = negative;
-        existing.NeutralPosts = neutral;
-        existing.UnratedPosts = unrated;
-        existing.ModelName = model.Name;
-      }
+          var rec = new FaG.Data.DAL.FearGreedIndex
+          {
+            DateUtc = date,
+            ScoreInt = scoreInt,
+            ScoreNormalized = scoreNorm,
+            TotalPosts = total,
+            PositivePosts = positive,
+            NegativePosts = negative,
+            NeutralPosts = neutral,
+            UnratedPosts = unrated,
+            ModelName = model.Name
+          };
+          await db.FearGreedIndices.AddAsync(rec, token).ConfigureAwait(false);
+        }
+        else
+        {
+          existing.ScoreInt = scoreInt;
+          existing.ScoreNormalized = scoreNorm;
+          existing.TotalPosts = total;
+          existing.PositivePosts = positive;
+          existing.NegativePosts = negative;
+          existing.NeutralPosts = neutral;
+          existing.UnratedPosts = unrated;
+          existing.ModelName = model.Name;
+        }
 
-      await db.SaveChangesAsync(token).ConfigureAwait(false);
+        await db.SaveChangesAsync(token).ConfigureAwait(false);
+        date = date.AddDays(1);
+      }
     }
     catch
     {
     }
   }
   private static async Task EvaluateAndSavePostAsync(
-    FaGDbContext db, 
-    Dictionary<Guid, UserPostEvaluation> byId, 
+    FaGDbContext db,
+    Dictionary<Guid, UserPostEvaluation> byId,
     CancellationToken token)
   {
     var evaluator = new SentimentEvaluator();
@@ -215,6 +220,7 @@ public partial class Program
         else
         {
           exists.Emotion = post.Emotion;
+          exists.PostDate = post.PostDate != default ? post.PostDate : exists.PostDate;
           exists.EvaluationDate = post.EvaluationDate;
           exists.PostText = post.PostText ?? exists.PostText;
           exists.CommentsCount = post.CommentsCount;
@@ -225,7 +231,7 @@ public partial class Program
           exists.Tickers = string.IsNullOrEmpty(post.Tickers) ? exists.Tickers : post.Tickers;
         }
       }
-      catch(Exception ex)
+      catch (Exception ex)
       {
         Console.WriteLine(ex.ToString());
       }
@@ -245,20 +251,19 @@ public partial class Program
         continue;
 
       if (!byId.TryGetValue(post.PostId, out var exist))
-        byId[post.PostId] = post;
+        byId.Add(post.PostId, post);
       else
       {
-        if (post.EvaluationDate > exist.EvaluationDate)
-          byId[post.PostId] = post;
+        byId[post.PostId] = post;
       }
     }
 
     return byId;
   }
   private static async Task<List<UserPostEvaluation>> DownloadAllPostsAsync(
-    DateTime startUtc, 
-    DateTime endUtc, 
-    List<IFagDownloader> downloaders, 
+    DateTime startUtc,
+    DateTime endUtc,
+    List<IFagDownloader> downloaders,
     CancellationToken token)
   {
     var allPosts = new List<UserPostEvaluation>();

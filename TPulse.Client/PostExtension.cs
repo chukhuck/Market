@@ -13,6 +13,7 @@ namespace TPulse.Client
         Source = "TPulse",
         EvaluationDate = DateTime.Now,
         Emotion = emotion,
+        PostDate = post.Inserted,
         AuthorId = post.Owner?.Id ?? Guid.Empty,
         AuthorNickname = post.Owner?.Nickname ?? "Unknown",
         PostText = post?.Content?.Text ?? string.Empty,

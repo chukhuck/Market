@@ -10,6 +10,7 @@ namespace FaG.Data.DAL
     public int Id { get; set; }
     public Guid PostId { get; set; } = Guid.Empty;
     public DateTime EvaluationDate { get; set; }
+    public DateTime PostDate { get; set; }
     public Emotion Emotion { get; set; }
     public Guid AuthorId { get; set; } = Guid.Empty;
     public string AuthorNickname { get; set; } = string.Empty;

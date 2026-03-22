@@ -3,6 +3,8 @@
   public interface IStatisticsService
   {
     Task<StatisticsResult> GetStatisticsAsync();
+
+    Task<bool> ClearDatabaseAsync();
   }
 
   public class StatisticsResult

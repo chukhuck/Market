@@ -34,11 +34,11 @@ namespace TPulse.Client
 
           foreach (var post in response.Payload.Items.OrderByDescending(i => i.Inserted))
           {
-            if (post.Inserted <= end)
-              flag = false;
+            if (post.Inserted > end)
+              continue;
 
             if (post.Inserted < start)
-              continue;
+               flag = false;
 
             posts.Add(post.ToPostEvaluation(emotion: Emotion.None));
           }

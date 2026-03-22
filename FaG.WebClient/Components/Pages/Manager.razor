@@ -28,9 +28,28 @@ else
             <strong>Макс. дата:</strong> @(_statistics.MaxDate?.ToString("yyyy-MM-dd") ?? "Нет данных")
         </span>
     </div>
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Дата начала:</label>
+            <input type="datetime-local"
+                   @bind="_startDate"
+                   class="form-control" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Дата окончания:</label>
+            <input type="datetime-local"
+                   @bind="_endDate"
+                   class="form-control" />
+        </div>
+        <button class="btn btn-primary" @onclick="HandleProcessRange">Обработать</button>
+    </div>
+    <button class="btn btn-primary" @onclick="ClearDB">Очистить БД</button>
 }
 
-<button class="btn btn-primary" @onclick="HandleProcessRange">Click me</button>
+
+
+
+
 
 @code {
     private StatisticsResult? _statistics = null;
@@ -54,6 +73,27 @@ else
         }
     }
 
+    private async Task ClearDB()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await StatisticsService.ClearDatabaseAsync();
+            _statistics = await StatisticsService.GetStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при очистке БД: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
     private async Task HandleProcessRange()
     {
         if (!_startDate.HasValue || !_endDate.HasValue)
@@ -71,6 +111,7 @@ else
                 ?? "http://scheduler:8080";
 
             using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromHours(5);
             var startFormatted = _startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
             var endFormatted = _endDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
 

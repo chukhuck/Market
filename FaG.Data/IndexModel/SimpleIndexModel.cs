@@ -7,7 +7,7 @@ namespace FaG.Data.IndexModel
     public override int ComputeScoreInt(int positive, int negative, int neutral)
     {
       // Default logic: positive +1, negative -1, neutral -1
-      return positive * 1 + negative * 0 + neutral * -1;
+      return positive * 1 + negative * -1 + neutral * 0;
     }
 
     // Normalize to [-1,1]

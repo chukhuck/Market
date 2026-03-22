@@ -1,5 +1,4 @@
-﻿using Cronos;
-using FaG.Common;
+﻿using FaG.Common;
 using FaG.Data.DAL;
 using FaG.Data.IndexModel;
 using Microsoft.EntityFrameworkCore;
@@ -207,7 +206,7 @@ public partial class Program
       try
       {
         post.EvaluationDate = DateTime.UtcNow;
-        post.Emotion = evaluator.Evaluate(post.PostText ?? string.Empty);
+        post.Emotion = SentimentEvaluator.Evaluate(post.PostText ?? string.Empty);
 
         var exists = await db.UserPostEvaluations
           .FirstOrDefaultAsync(x => x.PostId == post.PostId, token)
@@ -250,7 +249,7 @@ public partial class Program
       if (post.PostId == Guid.Empty)
         continue;
 
-      if (!byId.TryGetValue(post.PostId, out var exist))
+      if (!byId.TryGetValue(post.PostId, out var _))
         byId.Add(post.PostId, post);
       else
       {
@@ -288,64 +287,15 @@ public partial class Program
   }
 }
 
-public class ScheduledWorker : BackgroundService
-{
-  private readonly IServiceProvider _provider;
-  private readonly CronExpression _cronExpr;
-  private readonly TimeZoneInfo _timeZone;
-
-  public ScheduledWorker(IServiceProvider provider, IConfiguration configuration)
-  {
-    _provider = provider;
-
-    var cron = configuration["Scheduler:Cron"] ?? "15 0 * * *"; // default daily at 00:15
-    _cronExpr = CronExpression.Parse(cron, CronFormat.Standard);
-
-    _timeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Moscow");
-  }
-  protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-  {
-    while (!stoppingToken.IsCancellationRequested)
-    {
-      var nowLocal = DateTime.UtcNow;
-      var next = _cronExpr.GetNextOccurrence(nowLocal, _timeZone);
-      if (next == null)
-        break;
-
-      var delay = next.Value - nowLocal;
-      if (delay > TimeSpan.Zero)
-      {
-        try
-        {
-          await Task.Delay(delay, stoppingToken);
-        }
-        catch (TaskCanceledException)
-        {
-          break;
-        }
-      }
-
-      var occLocal = next.Value;
-      var startLocal = occLocal.Date.AddDays(-1);
-      var endLocal = occLocal.Date;
-
-      var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal, _timeZone);
-      var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal, _timeZone);
-
-      await Program.ProcessPostsByRangeAsync(_provider, startUtc, endUtc, stoppingToken).ConfigureAwait(false);
-    }
-  }
-}
-
 /// <summary>
 /// Very small sentiment evaluator stub. Replace with real model integration later.
 /// </summary>
 internal class SentimentEvaluator
 {
-  private static readonly string[] Positive = new[] { "хорош", "отлич", "класс", "👍", "супер", "любл", "профит", "прибыл" };
-  private static readonly string[] Negative = new[] { "плох", "ужас", "⚠", "потер", "убыт", "страш", "жоп", "хз" };
+  private static readonly string[] Positive = ["хорош", "отлич", "класс", "👍", "супер", "любл", "профит", "прибыл"];
+  private static readonly string[] Negative = ["плох", "ужас", "⚠", "потер", "убыт", "страш", "жоп", "хз"];
 
-  public Emotion Evaluate(string text)
+  public static Emotion Evaluate(string text)
   {
     if (string.IsNullOrWhiteSpace(text))
       return Emotion.None;

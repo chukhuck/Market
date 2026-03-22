@@ -2,14 +2,9 @@ using FaG.Data.DAL;
 
 namespace FaG.Data.IndexModel
 {
-  public abstract class BaseIndexModel
+  public abstract class BaseIndexModel(string name)
   {
-    public string Name { get; }
-
-    protected BaseIndexModel(string name)
-    {
-      Name = name;
-    }
+    public string Name { get; } = name;
 
     public abstract int ComputeScoreInt(int positive, int negative, int neutral);
 

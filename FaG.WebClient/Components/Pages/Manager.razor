@@ -58,7 +58,7 @@ else
     private bool _isLoading = false;
 
     [Inject]
-    private IConfiguration Configuration { get; set; }
+    private IConfiguration? Configuration { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -106,6 +106,12 @@ else
 
         try
         {
+            if (Configuration is null)
+            {
+                Console.WriteLine("Не удалось получить конфигурацию");
+                return;
+            }
+
             // Получаем URL из конфигурации
             var schedulerUrl = Configuration["SCHEDULER_API_URL"]
                 ?? "http://scheduler:8080";

@@ -1,10 +1,13 @@
 ﻿using FaG.Common;
+using FaG.Data.Common;
 using FaG.Data.DAL;
 using FaG.Data.IndexModel;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using TPulse.Client;
+using TPulse.Client.Model;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -99,25 +102,29 @@ public partial class Program
 
     var db = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
     var downloaders = scope.ServiceProvider.GetServices<IFagDownloader>().ToList();
+    var evaluaters = scope.ServiceProvider.GetServices<IFagEvaluater>().ToList();
 
-    if (downloaders.Count == 0)
-      return;
-    List<UserPostEvaluation> allPosts = await DownloadAllPostsAsync(
-                                                                      startUtc,
-                                                                      endUtc,
-                                                                      downloaders,
-                                                                      token)
-                                              .ConfigureAwait(false);
 
-    Dictionary<Guid, UserPostEvaluation> byId = ClearPosts(allPosts);
-    await EvaluateAndSavePostAsync(db, byId, token).ConfigureAwait(false);
-    await CalculateAndSaveFearAndGreadIndexAsync(startUtc, endUtc, db, token).ConfigureAwait(false);
+    var start = startUtc.Date;
+    var end = start.AddDays(1).Date;
+
+    while (end <= endUtc.Date.AddDays(1))
+    {
+      Console.WriteLine($"Processing posts from {start:yyyy-MM-dd} to {end:yyyy-MM-dd}...");
+      var posts = await DownloadAndSaveAllPostsAsync(db, start, end, downloaders, token).ConfigureAwait(false);
+
+      if (posts is null)
+        break;
+
+      await EvaluateAndSavePostAsync(db, posts, evaluaters, token).ConfigureAwait(false);
+      await CalculateAndSaveFearAndGreadIndexAsync(db, start, end, token).ConfigureAwait(false);
+      if (token.IsCancellationRequested)
+        break;
+      start = end;
+      end = start.AddDays(1);
+    }
   }
-  private static async Task CalculateAndSaveFearAndGreadIndexAsync(
-    DateTime startUtc,
-    DateTime endUtc,
-    FaGDbContext db,
-    CancellationToken token)
+  private static async Task CalculateAndSaveFearAndGreadIndexAsync(DateTime startUtc,DateTime endUtc,FaGDbContext db,CancellationToken token)
   {
     try
     {
@@ -196,84 +203,60 @@ public partial class Program
   }
   private static async Task EvaluateAndSavePostAsync(
     FaGDbContext db,
-    Dictionary<Guid, UserPostEvaluation> byId,
+    List<UserPost> posts,
+    List<IFagEvaluater> evaluaters,
     CancellationToken token)
   {
-    var evaluator = new SentimentEvaluator();
+    Stopwatch stopwatch = Stopwatch.StartNew();
 
-    foreach (var post in byId.Values)
+    foreach (var evaluater in evaluaters)
     {
-      try
+      foreach (var post in posts)
       {
-        post.EvaluationDate = DateTime.UtcNow;
-        post.Emotion = SentimentEvaluator.Evaluate(post.PostText ?? string.Empty);
-
-        var exists = await db.UserPostEvaluations
-          .FirstOrDefaultAsync(x => x.PostId == post.PostId, token)
-          .ConfigureAwait(false);
-
-        if (exists == null)
+        try
         {
-          await db.UserPostEvaluations.AddAsync(post, token).ConfigureAwait(false);
+          stopwatch.Restart();
+          var evoluation = await evaluater.EvaluateAsync(post, token).ConfigureAwait(false);
+          stopwatch.Stop();
+          evoluation.Longiness = stopwatch.ElapsedMilliseconds;
+
+          post.Evaluations.Add(evoluation);
+          db.Evaluations.Add(evoluation );
         }
-        else
+        catch (Exception ex)
         {
-          exists.Emotion = post.Emotion;
-          exists.PostDate = post.PostDate != default ? post.PostDate : exists.PostDate;
-          exists.EvaluationDate = post.EvaluationDate;
-          exists.PostText = post.PostText ?? exists.PostText;
-          exists.CommentsCount = post.CommentsCount;
-          exists.TotalReactions = post.TotalReactions;
-          exists.ReactionsJson = post.ReactionsJson ?? exists.ReactionsJson;
-          exists.AuthorId = post.AuthorId != Guid.Empty ? post.AuthorId : exists.AuthorId;
-          exists.AuthorNickname = string.IsNullOrEmpty(post.AuthorNickname) ? exists.AuthorNickname : post.AuthorNickname;
-          exists.Tickers = string.IsNullOrEmpty(post.Tickers) ? exists.Tickers : post.Tickers;
+          Console.WriteLine(ex.ToString());
         }
-      }
-      catch (Exception ex)
-      {
-        Console.WriteLine(ex.ToString());
-      }
 
-      if (token.IsCancellationRequested)
-        break;
-    }
+        if (token.IsCancellationRequested)
+          break;
 
-    await db.SaveChangesAsync(token).ConfigureAwait(false);
-  }
-  private static Dictionary<Guid, UserPostEvaluation> ClearPosts(List<UserPostEvaluation> allPosts)
-  {
-    var byId = new Dictionary<Guid, UserPostEvaluation>();
-    foreach (var post in allPosts)
-    {
-      if (post.PostId == Guid.Empty)
-        continue;
-
-      if (!byId.TryGetValue(post.PostId, out var _))
-        byId.Add(post.PostId, post);
-      else
-      {
-        byId[post.PostId] = post;
+        await db.SaveChangesAsync(token).ConfigureAwait(false);
       }
     }
-
-    return byId;
   }
-  private static async Task<List<UserPostEvaluation>> DownloadAllPostsAsync(
+
+  private static async Task<List<UserPost>> DownloadAndSaveAllPostsAsync(
+    FaGDbContext db,
     DateTime startUtc,
     DateTime endUtc,
     List<IFagDownloader> downloaders,
     CancellationToken token)
   {
-    var allPosts = new List<UserPostEvaluation>();
+    List<UserPost> allPosts = new();
 
     foreach (var dl in downloaders)
     {
       try
       {
         var posts = await dl.DownloadPostsAsync(startUtc, endUtc, token).ConfigureAwait(false);
-        if (posts != null && posts.Count > 0)
+
+        if (posts != null)
+        {
           allPosts.AddRange(posts);
+          await db.Posts.AddRangeAsync(posts, token).ConfigureAwait(false);
+          await db.SaveChangesAsync(token).ConfigureAwait(false);
+        }
       }
       catch
       {

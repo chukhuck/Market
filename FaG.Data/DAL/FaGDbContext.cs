@@ -4,7 +4,8 @@ namespace FaG.Data.DAL
 {
   public class FaGDbContext : DbContext
   {
-    public DbSet<UserPostEvaluation> UserPostEvaluations { get; set; }
+    public DbSet<UserPost> Posts { get; set; }
+    public DbSet<PostEvaluation> Evaluations { get; set; }
     public DbSet<FearGreedIndex> FearGreedIndices { get; set; }
 
     public FaGDbContext(DbContextOptions<FaGDbContext> options)
@@ -18,11 +19,13 @@ namespace FaG.Data.DAL
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+      modelBuilder.Entity<PostEvaluation>()
+        .HasOne(pe => pe.Post)                   
+        .WithMany(up => up.Evaluations)         
+        .HasForeignKey(pe => pe.PostId)      
+        .OnDelete(DeleteBehavior.Cascade);      
+
       base.OnModelCreating(modelBuilder);
     }
-    //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    //{
-    //  optionsBuilder.UseSqlite("Data Source=fag.db");
-    //}
   }
 }

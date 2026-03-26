@@ -1,10 +1,9 @@
 ﻿using FaG.Data.DAL;
-using System.Threading;
 
-namespace FaG.Common
+namespace FaG.Data.Common
 {
   public interface IFagDownloader
   {
-    public Task<List<UserPostEvaluation>> DownloadPostsAsync(DateTime start, DateTime end, CancellationToken token = default);
+    public Task<List<UserPost>> DownloadPostsAsync(DateTime start, DateTime end, CancellationToken token = default);
   }
 }

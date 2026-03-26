@@ -8,24 +8,28 @@ namespace FaG.Data.DAL
   {
     [Key]
     public int Id { get; set; }
+    public string ModelName { get; set; } = string.Empty;
+    public DateTime Date { get; set; }
 
-    // Date for which the index is computed (UTC date, date portion used)
-    public DateTime DateUtc { get; set; }
 
-    // Integer score (sum of +1/-1 counts)
-    public int ScoreInt { get; set; }
-
-    // Normalized score in [-1,1]
-    public double ScoreNormalized { get; set; }
-
-    // Counts
-    public int TotalPosts { get; set; }
+    // Исходные данные
     public int PositivePosts { get; set; }
     public int NegativePosts { get; set; }
     public int NeutralPosts { get; set; }
     public int UnratedPosts { get; set; }
+    public int TotalRelevantPosts { get; set; } // positive + negative + neutral
 
-    // Model name used to compute the index
-    public string ModelName { get; set; } = string.Empty;
+    // Расчётные показатели
+    public double RawIndex { get; set; } // Индекс 0–100 без сглаживания
+    public double SmoothedIndex { get; set; } // EMA от RawIndex
+    public double CumulativeIndex { get; set; } // Кумулятивная сумма
+    public double NormalizedCumulative { get; set; } // Нормализованная кумулятивная сумма
+    public double InertialCumulative { get; set; } // Кумулятивная с инерцией
+
+    // Вспомогательные метрики для анализа
+    public double NeutralRatio { get; set; } // Доля нейтральных постов
+    public double Confidence { get; set; } // Коэффициент уверенности
+    public bool IsExtremeFear { get; set; } // RawIndex <= 25
+    public bool IsExtremeGreed { get; set; } // RawIndex >= 75
   }
 }

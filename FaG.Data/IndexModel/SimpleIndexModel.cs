@@ -1,29 +1,10 @@
 using FaG.Data.DAL;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace FaG.Data.IndexModel
 {
   public class SimpleIndexModel : BaseIndexModel
   {
     public SimpleIndexModel() : base("Simple") { }
-
-    public override double CalculateIndex(int positive, int negative, int neutral)
-    {
-      int totalRelevant = positive + negative + neutral;
-      if (totalRelevant == 0) return 50.0; // Нет данных → нейтрально
-
-      // Базовый коэффициент (с учётом знака: отрицательные снижают индекс)
-      double rawRatio = (double)(positive - negative) / (positive + negative);
-
-      // Коэффициент уверенности (меньше нейтральных → выше уверенность)
-      double confidence = 1.0 - (double)neutral / totalRelevant;
-
-      // Итоговый индекс
-      double index = 50.0 + 50.0 * rawRatio * confidence;
-
-      // Ограничение диапазона [0, 100]
-      return Math.Max(0.0, Math.Min(100.0, index));
-    }
 
 
     private const int EmaPeriod = 5;
@@ -33,13 +14,11 @@ namespace FaG.Data.IndexModel
     private double _previousEma = 50.0;
     private double _cumulativeSum = 0.0;
     private double _inertialCumulative = 0.0;
-    private List<FearGreedIndex> _historicalData = new();
 
-    public FearGreedIndex CalculateForDay(DateTime date, List<PostEvaluation> dailyPosts)
+    public override FearGreedIndex CalculateForDay(List<PostEvaluation> dailyPosts)
     {
       var result = new FearGreedIndex
       {
-        Date = date,
         PositivePosts = dailyPosts.Count(p => p.Emotion == Emotion.Positive),
         NegativePosts = dailyPosts.Count(p => p.Emotion == Emotion.Negative),
         NeutralPosts = dailyPosts.Count(p => p.Emotion == Emotion.Neutral),
@@ -72,8 +51,6 @@ namespace FaG.Data.IndexModel
       result.IsExtremeFear = result.RawIndex <= 25;
       result.IsExtremeGreed = result.RawIndex >= 75;
 
-      // Сохраняем для истории
-      _historicalData.Add(result);
       return result;
     }
 
@@ -121,17 +98,6 @@ namespace FaG.Data.IndexModel
     {
       _inertialCumulative = (1 - InertiaFactor) * _inertialCumulative + InertiaFactor * dailyContribution;
       return _inertialCumulative * 100; // Умножаем для удобства визуализации
-    }
-
-    /// <summary>
-    /// Сброс всех накопительных значений (для нового периода)
-    /// </summary>
-    public void ResetAccumulators()
-    {
-      _cumulativeSum = 0.0;
-      _inertialCumulative = 0.0;
-      _previousEma = 50.0;
-      _historicalData.Clear();
     }
   }
 }

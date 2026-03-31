@@ -5,18 +5,17 @@ namespace TPulse.Client
 {
   public static class PostExtension
   {
-    public static UserPostEvaluation ToPostEvaluation(this Post post, Emotion emotion)
+    public static UserPost ToUserPost(this Post post, Emotion emotion)
     {
-      return new UserPostEvaluation
+      return new UserPost
       {
-        PostId = post.Id,
+        InnerId = post.Id.ToString(),
         Source = "TPulse",
-        EvaluationDate = DateTime.Now,
-        Emotion = emotion,
-        PostDate = post.Inserted,
+        Date = post.Inserted,
         AuthorId = post.Owner?.Id ?? Guid.Empty,
         AuthorNickname = post.Owner?.Nickname ?? "Unknown",
-        PostText = post?.Content?.Text ?? string.Empty,
+        Text = post?.Content?.Text ?? string.Empty,
+        Lenght = post?.Content?.Text?.Length ?? 0,
         CommentsCount = post?.CommentsCount ?? 0,
         TotalReactions = post?.Reactions?.TotalCount ?? 0,
         ReactionsJson = post is null ? string.Empty : System.Text.Json.JsonSerializer.Serialize(post.Reactions),

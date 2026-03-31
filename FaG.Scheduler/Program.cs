@@ -1,5 +1,4 @@
-﻿using FaG.Common;
-using FaG.Data.Common;
+﻿using FaG.Data.Common;
 using FaG.Data.DAL;
 using FaG.Data.IndexModel;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +6,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using TPulse.Client;
-using TPulse.Client.Model;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -116,98 +114,51 @@ public partial class Program
       if (posts is null)
         break;
 
-      await EvaluateAndSavePostAsync(db, posts, evaluaters, token).ConfigureAwait(false);
-      await CalculateAndSaveFearAndGreadIndexAsync(db, start, end, token).ConfigureAwait(false);
+      var evoluations = await EvaluateAndSavePostAsync(db, posts, evaluaters, token).ConfigureAwait(false);
+      await CalculateAndSaveFearAndGreadIndexAsync(db, start, evoluations, token).ConfigureAwait(false);
       if (token.IsCancellationRequested)
         break;
       start = end;
       end = start.AddDays(1);
     }
   }
-  private static async Task CalculateAndSaveFearAndGreadIndexAsync(DateTime startUtc,DateTime endUtc,FaGDbContext db,CancellationToken token)
+  private static async Task CalculateAndSaveFearAndGreadIndexAsync(
+    FaGDbContext db,
+    DateTime date,
+    List<PostEvaluation> evaluations,
+    CancellationToken token)
   {
     try
     {
+
+      var previousIndex = await db.FearGreedIndices
+        .Where(i => i.Date < date && i.Date >= date.AddDays(-1))
+        .OrderByDescending(i => i.Date)
+        .FirstOrDefaultAsync(token)
+        .ConfigureAwait(false);
+
+
+
       var model = new SimpleIndexModel();
+      var fearGreedIndex = model.CalculateForDay(evaluations);
+      fearGreedIndex.Date = date;
 
-      var date = startUtc.Date;
-
-      while (date < endUtc.Date)
-      {
-        var from = date;
-        var to = date.AddDays(1);
-
-        var total = await db.UserPostEvaluations
-          .CountAsync(x => x.PostDate >= from && x.PostDate < to, token)
-          .ConfigureAwait(false);
-
-        var positive = await db.UserPostEvaluations
-          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.Positive, token)
-          .ConfigureAwait(false);
-
-        var negative = await db.UserPostEvaluations
-          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.Negative, token)
-          .ConfigureAwait(false);
-
-        var neutral = await db.UserPostEvaluations
-          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.Neutral, token)
-          .ConfigureAwait(false);
-
-        var unrated = await db.UserPostEvaluations
-          .CountAsync(x => x.PostDate >= from && x.PostDate < to && x.Emotion == FaG.Data.DAL.Emotion.None, token)
-          .ConfigureAwait(false);
-
-        var scoreInt = model.ComputeScoreInt(positive, negative, neutral);
-        var effective = total - unrated;
-        var scoreNorm = model.Normalize(scoreInt, effective);
-
-        var existing = await db.FearGreedIndices
-          .FirstOrDefaultAsync(i => i.DateUtc == date && i.ModelName == model.Name, token)
-          .ConfigureAwait(false);
-
-        if (existing == null)
-        {
-          var rec = new FaG.Data.DAL.FearGreedIndex
-          {
-            DateUtc = date,
-            ScoreInt = scoreInt,
-            ScoreNormalized = scoreNorm,
-            TotalPosts = total,
-            PositivePosts = positive,
-            NegativePosts = negative,
-            NeutralPosts = neutral,
-            UnratedPosts = unrated,
-            ModelName = model.Name
-          };
-          await db.FearGreedIndices.AddAsync(rec, token).ConfigureAwait(false);
-        }
-        else
-        {
-          existing.ScoreInt = scoreInt;
-          existing.ScoreNormalized = scoreNorm;
-          existing.TotalPosts = total;
-          existing.PositivePosts = positive;
-          existing.NegativePosts = negative;
-          existing.NeutralPosts = neutral;
-          existing.UnratedPosts = unrated;
-          existing.ModelName = model.Name;
-        }
-
-        await db.SaveChangesAsync(token).ConfigureAwait(false);
-        date = date.AddDays(1);
-      }
+      await db.SaveChangesAsync(token).ConfigureAwait(false);
     }
-    catch
+    catch (Exception ex)
     {
+      Console.WriteLine(ex.ToString());
     }
   }
-  private static async Task EvaluateAndSavePostAsync(
+  private static async Task<List<PostEvaluation>> EvaluateAndSavePostAsync(
     FaGDbContext db,
     List<UserPost> posts,
     List<IFagEvaluater> evaluaters,
     CancellationToken token)
   {
-    Stopwatch stopwatch = Stopwatch.StartNew();
+    List<PostEvaluation> evaluations = new();
+
+    Stopwatch stopwatch = new();
 
     foreach (var evaluater in evaluaters)
     {
@@ -218,10 +169,15 @@ public partial class Program
           stopwatch.Restart();
           var evoluation = await evaluater.EvaluateAsync(post, token).ConfigureAwait(false);
           stopwatch.Stop();
-          evoluation.Longiness = stopwatch.ElapsedMilliseconds;
 
-          post.Evaluations.Add(evoluation);
-          db.Evaluations.Add(evoluation );
+          if (evoluation != null)
+          {
+            evoluation.Longiness = stopwatch.ElapsedMilliseconds;
+
+            post.Evaluations.Add(evoluation);
+            db.Evaluations.Add(evoluation);
+            evaluations.Add(evoluation);
+          }
         }
         catch (Exception ex)
         {
@@ -234,6 +190,8 @@ public partial class Program
         await db.SaveChangesAsync(token).ConfigureAwait(false);
       }
     }
+
+    return evaluations;
   }
 
   private static async Task<List<UserPost>> DownloadAndSaveAllPostsAsync(
@@ -258,8 +216,9 @@ public partial class Program
           await db.SaveChangesAsync(token).ConfigureAwait(false);
         }
       }
-      catch
+      catch (Exception ex)
       {
+        Console.WriteLine(ex.ToString());
       }
 
       if (token.IsCancellationRequested)

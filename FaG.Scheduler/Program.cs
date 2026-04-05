@@ -32,6 +32,24 @@ builder.Services.AddDbContext<FaGDbContext>(options => options.UseNpgsql(fagConn
 // Register available downloaders
 builder.Services.AddTransient<IFagDownloader, TPulseDownloader>();
 
+
+
+var emotionApiUrl = builder.Configuration["EMOTION_API_URL"]
+    ?? "http://emotionapi:8080";
+
+builder.Services.AddHttpClient<IFagEvaluater, ApiFagEvaluaterV1>(client =>
+{
+  client.Timeout = TimeSpan.FromSeconds(30);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+  ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+});
+
+builder.Services.AddSingleton(new ApiFagEvaluaterV1(
+    new HttpClient(),
+    emotionApiUrl));
+
 builder.Services.AddHostedService<ScheduledWorker>();
 
 var app = builder.Build();
@@ -102,7 +120,7 @@ app.MapGet("/evaluateandindex", async (HttpContext ctx) =>
   }
 });
 
-app.MapGet("/index", async (HttpContext ctx) =>
+app.MapGet("/buildindex", async (HttpContext ctx) =>
 {
   var q = ctx.Request.Query;
   if (!q.TryGetValue("start", out var startVals) || !q.TryGetValue("end", out var endVals))

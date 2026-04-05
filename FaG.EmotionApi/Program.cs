@@ -12,8 +12,8 @@ var app = builder.Build();
 
 app.MapPost("/evaluate", (PostRequest request) =>
 {
-    // Заглушка: всегда возвращаем Emotion.None
-    return Results.Json(new EvaluateResponse ( Emotion.None ));
+
+    return Results.Json(new EvaluateResponse ( (Emotion) (Random.Shared.Next()%4) ));
 });
 
 app.MapGet("/test", () =>

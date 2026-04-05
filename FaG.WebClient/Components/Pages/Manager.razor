@@ -274,7 +274,7 @@ else
             var endFormatted = _endDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
 
             // Формируем полный URL
-            var fullUrl = $"{schedulerUrl}/index?start={startFormatted}&end={endFormatted}";
+            var fullUrl = $"{schedulerUrl}/buildindex?start={startFormatted}&end={endFormatted}";
 
             var response = await httpClient.GetAsync(fullUrl);
 

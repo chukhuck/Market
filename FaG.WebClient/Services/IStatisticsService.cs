@@ -5,6 +5,10 @@
     Task<StatisticsResult> GetStatisticsAsync();
 
     Task<bool> ClearDatabaseAsync();
+
+    Task<bool> ClearEvaluationsAndIndexAsync();
+
+    Task<bool> ClearIndexAsync();
   }
 
   public class StatisticsResult

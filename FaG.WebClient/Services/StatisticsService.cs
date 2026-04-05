@@ -9,6 +9,34 @@ namespace FaG.WebClient.Services
 
     public async Task<bool> ClearDatabaseAsync()
     {
+      var entityType = _context.Model.FindEntityType(typeof(UserPost));
+      if (entityType != null)
+      {
+        var tableName = entityType.GetTableName();
+        await _context.Database.ExecuteSqlAsync($"TRUNCATE TABLE \"{tableName}\"");
+      }
+
+      entityType = _context.Model.FindEntityType(typeof(PostEvaluation));
+      if (entityType != null)
+      {
+        var tableName = entityType.GetTableName();
+        await _context.Database.ExecuteSqlAsync($"TRUNCATE TABLE \"{tableName}\"");
+      }
+
+      entityType = _context.Model.FindEntityType(typeof(FearGreedIndex));
+      if (entityType != null)
+      {
+        var tableName = entityType.GetTableName();
+
+        await _context.Database.ExecuteSqlAsync($"TRUNCATE TABLE \"{tableName}\"");
+      }
+
+
+      return true;
+    }
+
+    public async Task<bool> ClearEvaluationsAndIndexAsync()
+    {
       var entityType = _context.Model.FindEntityType(typeof(PostEvaluation));
       if (entityType != null)
       {
@@ -17,6 +45,20 @@ namespace FaG.WebClient.Services
       }
 
       entityType = _context.Model.FindEntityType(typeof(FearGreedIndex));
+      if (entityType != null)
+      {
+        var tableName = entityType.GetTableName();
+
+        await _context.Database.ExecuteSqlAsync($"TRUNCATE TABLE \"{tableName}\"");
+      }
+
+
+      return true;
+    }
+
+    public async Task<bool> ClearIndexAsync()
+    {
+      var entityType = _context.Model.FindEntityType(typeof(FearGreedIndex));
       if (entityType != null)
       {
         var tableName = entityType.GetTableName();

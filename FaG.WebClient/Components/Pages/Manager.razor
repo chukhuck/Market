@@ -43,6 +43,8 @@ else
             <button class="btn btn-primary" @onclick="HandleProcessRange">Обработать</button>
         </div>
         <div><button class="btn btn-danger" @onclick="ClearDB">Очистить БД</button></div>
+        <div><button class="btn btn-danger" @onclick="ClearEvaluationsAndIndex">Очистить оценки и индекс</button></div>
+        <div><button class="btn btn-danger" @onclick="ClearIndex">Очистить индекс</button></div>
     </div>        
 }
 
@@ -81,6 +83,48 @@ else
         try
         {
             await StatisticsService.ClearDatabaseAsync();
+            _statistics = await StatisticsService.GetStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при очистке БД: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearEvaluationsAndIndex()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await StatisticsService.ClearEvaluationsAndIndexAsync();
+            _statistics = await StatisticsService.GetStatisticsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при очистке БД: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ClearIndex()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await StatisticsService.ClearIndexAsync();
             _statistics = await StatisticsService.GetStatisticsAsync();
         }
         catch (Exception ex)

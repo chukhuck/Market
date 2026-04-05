@@ -7,6 +7,7 @@ namespace FaG.Data.DAL
     public DbSet<UserPost> Posts { get; set; }
     public DbSet<PostEvaluation> Evaluations { get; set; }
     public DbSet<FearGreedIndex> FearGreedIndices { get; set; }
+    public DbSet<IMOEXIndexTradeDay> IMOEXIndex { get; set; }
 
     public FaGDbContext(DbContextOptions<FaGDbContext> options)
         : base(options)

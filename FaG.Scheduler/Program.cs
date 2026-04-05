@@ -1,6 +1,7 @@
 ﻿using FaG.Data.Common;
 using FaG.Data.DAL;
 using FaG.Data.IndexModel;
+using FaG.Scheduler.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Globalization;
@@ -16,6 +17,12 @@ builder.Services.AddSingleton(new TPulseApiClient(
     "https://www.tbank.ru/mybank/api/social-api-gateway/social/post/feed/v1/post/instrument/{tiker}?appName=invest&origin=web&platform=web&include=all",
     "https://pulse-image-post.cdn-tinkoff.ru/{guid_image}-small.jpeg"
 ));
+
+
+builder.Services.AddHttpClient<IMoexDataService, MoexDataService>(client =>
+{
+  client.DefaultRequestHeaders.UserAgent.ParseAdd("FaG.Moex/1.0");
+});
 
 var fagConn = Environment.GetEnvironmentVariable("FAG_DB") ??
     "Host=localhost;Port=5432;Database=fagdb;Username=faguser;Password=fagpassword";
@@ -150,12 +157,16 @@ public partial class Program
     var downloaders = scope.ServiceProvider.GetServices<IFagDownloader>().ToList();
     var evaluaters = scope.ServiceProvider.GetServices<IFagEvaluater>().ToList();
 
+    var moexService = scope.ServiceProvider.GetRequiredService<IMoexDataService>();
+
 
     var start = startUtc.Date;
     var end = start.AddDays(1).Date;
 
     while (end <= endUtc.Date)
     {
+      await LoadIMOEXIndexDataAsync(startUtc, endUtc, db, moexService, token);
+
       Console.WriteLine($"Processing posts from {start:yyyy-MM-dd} to {end:yyyy-MM-dd}...");
       var posts = await DownloadAndSaveAllPostsAsync(db, start, end, downloaders, token).ConfigureAwait(false);
 
@@ -170,6 +181,44 @@ public partial class Program
       end = start.AddDays(1);
     }
   }
+
+  private static async Task LoadIMOEXIndexDataAsync(DateTime startUtc, DateTime endUtc, FaGDbContext db, IMoexDataService moexService, CancellationToken token)
+  {
+    Console.WriteLine($"Loading IMOEX data from {startUtc:yyyy-MM-dd} to {endUtc:yyyy-MM-dd}...");
+    try
+    {
+      var imoexData = await moexService.GetIMOEXDataAsync(startUtc, endUtc, token);
+
+      foreach (var day in imoexData)
+      {
+        var existing = await db.IMOEXIndex
+            .FirstOrDefaultAsync(i => i.Date.Date == day.Date.Date, token);
+
+        if (existing == null)
+        {
+          await db.IMOEXIndex.AddAsync(day, token);
+          Console.WriteLine($"Added IMOEX data for {day.Date:yyyy-MM-dd}");
+        }
+        else
+        {
+          existing.Open = day.Open;
+          existing.Close = day.Close;
+          existing.High = day.High;
+          existing.Low = day.Low;
+          existing.Volume = day.Volume;
+          Console.WriteLine($"Updated IMOEX data for {day.Date:yyyy-MM-dd}");
+        }
+      }
+
+      await db.SaveChangesAsync(token);
+      Console.WriteLine($"Loaded {imoexData.Count} IMOEX records");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Error loading IMOEX data: {ex.Message}");
+    }
+  }
+
   private static async Task CalculateAndSaveFearAndGreadIndexAsync(
     FaGDbContext db,
     DateTime date,

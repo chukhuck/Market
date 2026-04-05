@@ -71,6 +71,54 @@ app.MapGet("/process-range", async (HttpContext ctx) =>
   }
 });
 
+app.MapGet("/evaluateandindex", async (HttpContext ctx) =>
+{
+  var q = ctx.Request.Query;
+  if (!q.TryGetValue("start", out var startVals) || !q.TryGetValue("end", out var endVals))
+    return Results.BadRequest("Требуются параметры 'start' и 'end'");
+
+  if (!TryParseDate(startVals[0], out var start) || !TryParseDate(endVals[0], out var end))
+    return Results.BadRequest("Невозможно распарсить даты. Используйте формат 2023-01-01T00:00:00Z.");
+
+  try
+  {
+    await Program.EvaluatePostsAndBuildIndexByRangeAsync(ctx.RequestServices, start, end, ctx.RequestAborted).ConfigureAwait(false);
+    return Results.Ok(new { started = start, ended = end });
+  }
+  catch (OperationCanceledException)
+  {
+    return Results.StatusCode((int)HttpStatusCode.RequestTimeout);
+  }
+  catch (Exception ex)
+  {
+    return Results.Problem(ex.Message);
+  }
+});
+
+app.MapGet("/index", async (HttpContext ctx) =>
+{
+  var q = ctx.Request.Query;
+  if (!q.TryGetValue("start", out var startVals) || !q.TryGetValue("end", out var endVals))
+    return Results.BadRequest("Требуются параметры 'start' и 'end'");
+
+  if (!TryParseDate(startVals[0], out var start) || !TryParseDate(endVals[0], out var end))
+    return Results.BadRequest("Невозможно распарсить даты. Используйте формат 2023-01-01T00:00:00Z.");
+
+  try
+  {
+    await Program.BuildIndexByRangeAsync(ctx.RequestServices, start, end, ctx.RequestAborted).ConfigureAwait(false);
+    return Results.Ok(new { started = start, ended = end });
+  }
+  catch (OperationCanceledException)
+  {
+    return Results.StatusCode((int)HttpStatusCode.RequestTimeout);
+  }
+  catch (Exception ex)
+  {
+    return Results.Problem(ex.Message);
+  }
+});
+
 app.Run();
 
 static bool TryParseDate(string? s, out DateTime dt)
@@ -157,7 +205,7 @@ public partial class Program
     List<IFagEvaluater> evaluaters,
     CancellationToken token)
   {
-    List<PostEvaluation> evaluations = new();
+    List<PostEvaluation> evaluations = [];
 
     Stopwatch stopwatch = new();
 
@@ -202,7 +250,7 @@ public partial class Program
     List<IFagDownloader> downloaders,
     CancellationToken token)
   {
-    List<UserPost> allPosts = new();
+    List<UserPost> allPosts = [];
 
     foreach (var dl in downloaders)
     {
@@ -227,6 +275,71 @@ public partial class Program
     }
 
     return allPosts;
+  }
+
+  private static async Task EvaluatePostsAndBuildIndexByRangeAsync(IServiceProvider services, DateTime startUtc, DateTime endUtc, CancellationToken token)
+  {
+    using var scope = services.CreateScope();
+
+    var db = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
+
+    var evaluaters = scope.ServiceProvider.GetServices<IFagEvaluater>().ToList();
+
+
+    var start = startUtc.Date;
+    var end = start.AddDays(1).Date;
+
+    while (end <= endUtc.Date)
+    {
+      Console.WriteLine($"Processing posts from {start:yyyy-MM-dd} to {end:yyyy-MM-dd}...");
+
+      var posts = await db.Posts
+        .Where(p => p.Date >= start.Date && p.Date < end.Date)
+        .Include(p => p.Evaluations)
+        .ToListAsync(token)
+        .ConfigureAwait(false);
+
+
+      if (posts is null)
+        break;
+
+      var evoluations = await EvaluateAndSavePostAsync(db, posts, evaluaters, token).ConfigureAwait(false);
+      await CalculateAndSaveFearAndGreadIndexAsync(db, start, evoluations, token).ConfigureAwait(false);
+      if (token.IsCancellationRequested)
+        break;
+      start = end;
+      end = start.AddDays(1);
+    }
+  }
+
+  private static async Task BuildIndexByRangeAsync(IServiceProvider services, DateTime startUtc, DateTime endUtc, CancellationToken token)
+  {
+    using var scope = services.CreateScope();
+
+    var db = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
+
+    var start = startUtc.Date;
+    var end = start.AddDays(1).Date;
+
+    while (end <= endUtc.Date)
+    {
+      Console.WriteLine($"Processing posts from {start:yyyy-MM-dd} to {end:yyyy-MM-dd}...");
+      var posts = await db.Posts
+          .Where(p => p.Date >= start.Date && p.Date < end.Date)
+          .Include(p => p.Evaluations)
+          .ToListAsync(token)
+          .ConfigureAwait(false);
+
+      if (posts is null)
+        break;
+
+      var evoluations = posts.SelectMany(p=>p.Evaluations).ToList();
+      await CalculateAndSaveFearAndGreadIndexAsync(db, start, evoluations, token).ConfigureAwait(false);
+      if (token.IsCancellationRequested)
+        break;
+      start = end;
+      end = start.AddDays(1);
+    }
   }
 }
 

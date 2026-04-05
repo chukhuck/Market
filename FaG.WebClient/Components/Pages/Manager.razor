@@ -41,6 +41,8 @@ else
                        class="form-control" />
             </div>
             <button class="btn btn-primary" @onclick="HandleProcessRange">Обработать</button>
+            <button class="btn btn-primary" @onclick="EvaluateAndIndexProcessRange">Оценить и построить индекс</button>
+            <button class="btn btn-primary" @onclick="IndexHandleProcessRange">построить индекс</button>
         </div>
         <div><button class="btn btn-danger" @onclick="ClearDB">Очистить БД</button></div>
         <div><button class="btn btn-danger" @onclick="ClearEvaluationsAndIndex">Очистить оценки и индекс</button></div>
@@ -167,6 +169,112 @@ else
 
             // Формируем полный URL
             var fullUrl = $"{schedulerUrl}/process-range?start={startFormatted}&end={endFormatted}";
+
+            var response = await httpClient.GetAsync(fullUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _statistics = await StatisticsService.GetStatisticsAsync();
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Ошибка API: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при вызове API: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EvaluateAndIndexProcessRange()
+    {
+        if (!_startDate.HasValue || !_endDate.HasValue)
+        {
+            return;
+        }
+
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            if (Configuration is null)
+            {
+                Console.WriteLine("Не удалось получить конфигурацию");
+                return;
+            }
+
+            // Получаем URL из конфигурации
+            var schedulerUrl = Configuration["SCHEDULER_API_URL"]
+                ?? "http://scheduler:8080";
+
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromHours(5);
+            var startFormatted = _startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var endFormatted = _endDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+            // Формируем полный URL
+            var fullUrl = $"{schedulerUrl}/evaluateandindex?start={startFormatted}&end={endFormatted}";
+
+            var response = await httpClient.GetAsync(fullUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _statistics = await StatisticsService.GetStatisticsAsync();
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Ошибка API: {errorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при вызове API: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task IndexHandleProcessRange()
+    {
+        if (!_startDate.HasValue || !_endDate.HasValue)
+        {
+            return;
+        }
+
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            if (Configuration is null)
+            {
+                Console.WriteLine("Не удалось получить конфигурацию");
+                return;
+            }
+
+            // Получаем URL из конфигурации
+            var schedulerUrl = Configuration["SCHEDULER_API_URL"]
+                ?? "http://scheduler:8080";
+
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromHours(5);
+            var startFormatted = _startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var endFormatted = _endDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+            // Формируем полный URL
+            var fullUrl = $"{schedulerUrl}/index?start={startFormatted}&end={endFormatted}";
 
             var response = await httpClient.GetAsync(fullUrl);
 

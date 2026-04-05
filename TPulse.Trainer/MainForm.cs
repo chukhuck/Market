@@ -179,9 +179,17 @@ public partial class MainForm : Form
       return;
     }
 
-    var evaluation = post.ToPostEvaluation(emotion);
+    var userPost = post.ToUserPost();
+    userPost.Evaluations = new HashSet<PostEvaluation>
+    {
+      new PostEvaluation
+      {
+        Emotion = emotion,
+        Date = DateTime.UtcNow
+      }
+    };
 
-    await _dbContext.UserPostEvaluations.AddAsync(evaluation);
+    await _dbContext.Posts.AddAsync(userPost);
     await _dbContext.SaveChangesAsync();
     await GoToNextPostAsync();
   }

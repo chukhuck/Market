@@ -106,7 +106,7 @@ public partial class Program
     var start = startUtc.Date;
     var end = start.AddDays(1).Date;
 
-    while (end <= endUtc.Date.AddDays(1))
+    while (end <= endUtc.Date)
     {
       Console.WriteLine($"Processing posts from {start:yyyy-MM-dd} to {end:yyyy-MM-dd}...");
       var posts = await DownloadAndSaveAllPostsAsync(db, start, end, downloaders, token).ConfigureAwait(false);
@@ -130,16 +130,17 @@ public partial class Program
   {
     try
     {
-
-      var previousIndex = await db.FearGreedIndices
-        .Where(i => i.Date < date && i.Date >= date.AddDays(-1))
+      var historicalData = await db.FearGreedIndices
+        .Where(i => i.Date > date.AddDays(-SimpleIndexModel.NormalizationWindow - 1))
         .OrderByDescending(i => i.Date)
-        .FirstOrDefaultAsync(token)
+        .ToListAsync(token)
         .ConfigureAwait(false);
 
+      var model = new SimpleIndexModel(historicalData);
 
 
-      var model = new SimpleIndexModel();
+
+      
       var fearGreedIndex = model.CalculateForDay(evaluations);
       fearGreedIndex.Date = date;
 

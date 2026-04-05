@@ -35,7 +35,7 @@ namespace TPulse.Client
             if (post.Inserted < start)
                flag = false;
 
-            posts.Add(post.ToUserPost(emotion: Emotion.None));
+            posts.Add(post.ToUserPost());
           }
 
           nextCursor = response.Payload.NextCursor;

@@ -5,7 +5,9 @@ namespace TPulse.Trainer.DAL
 {
   public class AppDbContext : DbContext
   {
-    public DbSet<UserPostEvaluation> UserPostEvaluations { get; set; } = null!;
+    public DbSet<UserPost> Posts { get; set; } = null!;
+    public DbSet<PostEvaluation> Evaluations { get; set; } = null!;
+
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

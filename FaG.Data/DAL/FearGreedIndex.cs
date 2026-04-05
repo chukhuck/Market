@@ -29,7 +29,10 @@ namespace FaG.Data.DAL
     // Вспомогательные метрики для анализа
     public double NeutralRatio { get; set; } // Доля нейтральных постов
     public double Confidence { get; set; } // Коэффициент уверенности
-    public bool IsExtremeFear { get; set; } // RawIndex <= 25
-    public bool IsExtremeGreed { get; set; } // RawIndex >= 75
+
+    [NotMapped]
+    public bool IsExtremeFear => RawIndex <= 25; // RawIndex <= 25
+    [NotMapped]
+    public bool IsExtremeGreed => RawIndex >= 75;// RawIndex >= 75
   }
 }

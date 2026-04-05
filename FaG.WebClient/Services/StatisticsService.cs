@@ -9,7 +9,7 @@ namespace FaG.WebClient.Services
 
     public async Task<bool> ClearDatabaseAsync()
     {
-      var entityType = _context.Model.FindEntityType(typeof(UserPostEvaluation));
+      var entityType = _context.Model.FindEntityType(typeof(PostEvaluation));
       if (entityType != null)
       {
         var tableName = entityType.GetTableName();
@@ -30,20 +30,20 @@ namespace FaG.WebClient.Services
 
     public async Task<StatisticsResult> GetStatisticsAsync()
     {
-      var totalCount = await _context.UserPostEvaluations.CountAsync();
-      var minDate = await _context.UserPostEvaluations
-          .MinAsync(u => u.PostDate);
-      var maxDate = await _context.UserPostEvaluations
-          .MaxAsync(u => u.PostDate);
+      var totalCount = await _context.Posts.CountAsync();
+      var evaluationTotalCount = await _context.Evaluations.CountAsync();
+      var minDate = await _context.Posts.MinAsync(u => u.Date);
+      var maxDate = await _context.Posts.MaxAsync(u => u.Date);
 
       var indexMinDate = await _context.FearGreedIndices
-          .MinAsync(u => u.DateUtc);
+          .MinAsync(u => u.Date);
       var indexMaxDate = await _context.FearGreedIndices
-          .MaxAsync(u => u.DateUtc);
+          .MaxAsync(u => u.Date);
 
       return new StatisticsResult
       {
         PostTotalCount = totalCount,
+        EvaluationTotalCount = evaluationTotalCount,
         PostMinDate = minDate,
         PostMaxDate = maxDate,
         IndexMinDate = indexMinDate,

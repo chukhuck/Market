@@ -5,7 +5,7 @@ namespace TPulse.Client
 {
   public static class PostExtension
   {
-    public static UserPost ToUserPost(this Post post, Emotion emotion)
+    public static UserPost ToUserPost(this Post post)
     {
       return new UserPost
       {

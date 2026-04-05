@@ -6,14 +6,16 @@ namespace FaG.Data.IndexModel
   {
     public SimpleIndexModel() : base("Simple") { }
 
+    public SimpleIndexModel(List<FearGreedIndex> historicalData) : base("Simple") 
+    {
+      _historicalData = historicalData;
+    }
 
-    private const int EmaPeriod = 5;
-    private const double InertiaFactor = 0.1; // 10 % нового значения, 90 % старого
-    private const int NormalizationWindow = 30; // Окно нормализации в днях
 
-    private double _previousEma = 50.0;
-    private double _cumulativeSum = 0.0;
-    private double _inertialCumulative = 0.0;
+    public const int EmaPeriod = 5;
+    public const double InertiaFactor = 0.1; // 10 % нового значения, 90 % старого
+    public const int NormalizationWindow = 30; // Окно нормализации в днях
+    private readonly List<FearGreedIndex> _historicalData = [];
 
     public override FearGreedIndex CalculateForDay(List<PostEvaluation> dailyPosts)
     {
@@ -47,10 +49,6 @@ namespace FaG.Data.IndexModel
       // Кумулятивная с инерцией (учитывает предыдущие значения)
       result.InertialCumulative = CalculateInertialCumulative(result.SmoothedIndex - 50);
 
-      // Бинарные сигналы
-      result.IsExtremeFear = result.RawIndex <= 25;
-      result.IsExtremeGreed = result.RawIndex >= 75;
-
       return result;
     }
 
@@ -66,20 +64,19 @@ namespace FaG.Data.IndexModel
     private double CalculateEma(double currentValue)
     {
       double alpha = 2.0 / (EmaPeriod + 1);
-      if (_previousEma == 50.0 && _historicalData.Count == 0)
-        _previousEma = currentValue;
-      double ema = alpha * currentValue + (1 - alpha) * _previousEma;
-      _previousEma = ema;
-      return ema;
-    }
+      double _previousEma = _historicalData.Count > 0 ? _historicalData.Last().SmoothedIndex : 50.0;
 
+      return alpha * currentValue + (1 - alpha) * _previousEma;
+    }
+    
     private double CalculateCumulativeSum(double smoothedIndex)
     {
       double adjustedValue = smoothedIndex - 50.0;
-      _cumulativeSum += adjustedValue;
-      return _cumulativeSum;
-    }
 
+      double _cumulativeSum = _historicalData.Count > 0 ? _historicalData.Last().CumulativeIndex : 0.0;
+      return _cumulativeSum + adjustedValue;
+    }
+    
     private double CalculateNormalizedCumulative(double currentCumulative)
     {
       if (_historicalData.Count < NormalizationWindow)
@@ -92,10 +89,11 @@ namespace FaG.Data.IndexModel
       // Нормализуем относительно среднего
       return currentCumulative - averageCumulative;
     }
-
-
+    
+    
     private double CalculateInertialCumulative(double dailyContribution)
     {
+      double _inertialCumulative = _historicalData.Count > 0 ? _historicalData.Last().InertialCumulative : 0.0;
       _inertialCumulative = (1 - InertiaFactor) * _inertialCumulative + InertiaFactor * dailyContribution;
       return _inertialCumulative * 100; // Умножаем для удобства визуализации
     }

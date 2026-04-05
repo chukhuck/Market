@@ -21,6 +21,8 @@ else
         <h2>Статистика</h2>
         <p>В базе данных находятся <strong>@_statistics.PostTotalCount</strong> постов пользователей, написанных ими в период с <strong>@(_statistics.PostMinDate?.ToString("yyyy-MM-dd") ?? "Нет данных")</strong> по <strong>@(_statistics.PostMaxDate?.ToString("yyyy-MM-dd") ?? "Нет данных")</strong></p>
         <p></p>
+        <p>В базе данных находятся <strong>@_statistics.EvaluationTotalCount</strong> оценок постов пользователей</p>
+        <p></p>
         <p>Индекс страха и жадности построен с <strong>@(_statistics.IndexMinDate?.ToString("yyyy-MM-dd") ?? "Нет данных")</strong> по <strong>@(_statistics.IndexMaxDate?.ToString("yyyy-MM-dd") ?? "Нет данных")</strong></p>
     </div>
     <div>

@@ -9,27 +9,36 @@ namespace FaG.WebClient.Services
 
     public async Task<bool> ClearDatabaseAsync()
     {
-      var entityType = _context.Model.FindEntityType(typeof(UserPost));
-      if (entityType != null)
+      try
       {
-        var tableName = entityType.GetTableName();
-        await _context.Database.ExecuteSqlAsync($"TRUNCATE TABLE \"{tableName}\"");
+        var entityType = _context.Model.FindEntityType(typeof(UserPost));
+        if (entityType != null)
+        {
+          var tableName = entityType.GetTableName();
+          await _context.Database.ExecuteSqlRawAsync($"TRUNCATE TABLE \"{tableName}\"  CASCADE");
+        }
+
+        entityType = _context.Model.FindEntityType(typeof(PostEvaluation));
+        if (entityType != null)
+        {
+          var tableName = entityType.GetTableName();
+          await _context.Database.ExecuteSqlRawAsync($"TRUNCATE TABLE \"{tableName}\"");
+        }
+
+        entityType = _context.Model.FindEntityType(typeof(FearGreedIndex));
+        if (entityType != null)
+        {
+          var tableName = entityType.GetTableName();
+
+          await _context.Database.ExecuteSqlRawAsync($"TRUNCATE TABLE \"{tableName}\"");
+        }
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine(ex.ToString());
+        return false;
       }
 
-      entityType = _context.Model.FindEntityType(typeof(PostEvaluation));
-      if (entityType != null)
-      {
-        var tableName = entityType.GetTableName();
-        await _context.Database.ExecuteSqlAsync($"TRUNCATE TABLE \"{tableName}\"");
-      }
-
-      entityType = _context.Model.FindEntityType(typeof(FearGreedIndex));
-      if (entityType != null)
-      {
-        var tableName = entityType.GetTableName();
-
-        await _context.Database.ExecuteSqlAsync($"TRUNCATE TABLE \"{tableName}\"");
-      }
 
 
       return true;
@@ -74,12 +83,13 @@ namespace FaG.WebClient.Services
     {
       var totalCount = await _context.Posts.CountAsync();
       var evaluationTotalCount = await _context.Evaluations.CountAsync();
-      var minDate = await _context.Posts.MinAsync(u => u.Date);
-      var maxDate = await _context.Posts.MaxAsync(u => u.Date);
+      var minDate = totalCount == 0 ? DateTime.MinValue : await _context.Posts.MinAsync(u => u.Date);
+      var maxDate = totalCount == 0 ? DateTime.MinValue : await _context.Posts.MaxAsync(u => u.Date);
 
-      var indexMinDate = await _context.FearGreedIndices
+      var fagIndexCount = await _context.FearGreedIndices.CountAsync();
+      var indexMinDate = fagIndexCount == 0 ? DateTime.MinValue : await _context.FearGreedIndices
           .MinAsync(u => u.Date);
-      var indexMaxDate = await _context.FearGreedIndices
+      var indexMaxDate = fagIndexCount == 0 ? DateTime.MinValue : await _context.FearGreedIndices
           .MaxAsync(u => u.Date);
 
       return new StatisticsResult

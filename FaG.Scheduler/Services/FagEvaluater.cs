@@ -12,14 +12,12 @@ namespace FaG.Scheduler.Services
   public class ApiFagEvaluaterV1 : IFagEvaluater
   {
     private readonly HttpClient _httpClient;
-    private readonly string _emotionApiUrl;
 
     public string Name { get; set; } = "ApiFagEvaluaterV1";
 
-    public ApiFagEvaluaterV1(HttpClient httpClient, string emotionApiUrl)
+    public ApiFagEvaluaterV1(HttpClient httpClient)
     {
       _httpClient = httpClient;
-      _emotionApiUrl = emotionApiUrl.TrimEnd('/');
     }
 
     public async Task<PostEvaluation?> EvaluateAsync(UserPost post, CancellationToken token = default)
@@ -30,10 +28,7 @@ namespace FaG.Scheduler.Services
         var json = JsonSerializer.Serialize(request);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync(
-            $"{_emotionApiUrl}/evaluate",
-            content,
-            token);
+        var response = await _httpClient.PostAsync("/evaluate", content, token);
 
         response.EnsureSuccessStatusCode();
 

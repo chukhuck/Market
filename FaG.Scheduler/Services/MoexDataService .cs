@@ -1,4 +1,5 @@
 ﻿using FaG.Data.DAL;
+using System.Globalization;
 using System.Text.Json;
 
 namespace FaG.Scheduler.Services
@@ -65,35 +66,61 @@ namespace FaG.Scheduler.Services
         Console.WriteLine($"JSON parsing error: {ex.Message}");
         throw;
       }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"error: {ex.Message}");
+        throw;
+      }
     }
 
-    private static List<IMOEXIndexTradeDay> ParseMoexData(MoexResponse response)
+    private List<IMOEXIndexTradeDay> ParseMoexData(MoexResponse response)
     {
       if (response?.History?.Data == null || response.History.Columns == null)
-        return [];
+        return new List<IMOEXIndexTradeDay>();
 
       var columnMap = response.History.Columns
           .Select((name, index) => new { name, index })
           .ToDictionary(x => x.name.ToLowerInvariant(), x => x.index);
 
-      return [.. response.History.Data.Select(row =>
+      return response.History.Data.Select(row =>
       {
         object? getValue(string columnName)
         {
-          return columnMap.TryGetValue(columnName, out int value) && row.Count > value ? row[value]
-            : null;
+          return columnMap.TryGetValue(columnName, out int value) && row.Count > value
+              ? row[value]
+              : null;
+        }
+
+        double? getDoubleValue(string columnName)
+        {
+          var value = getValue(columnName);
+          if (value == null) return null;
+
+          return value switch
+          {
+            JsonElement element => element.ValueKind switch
+            {
+              JsonValueKind.Number => element.GetDouble(),
+              JsonValueKind.String => double.TryParse(element.GetString(), out var d) ? d : (double?)null,
+              _ => null
+            },
+            double d => d,
+            string s => double.TryParse(s, out var result) ? result : (double?)null,
+            IConvertible convertible => convertible.ToDouble(CultureInfo.InvariantCulture),
+            _ => null
+          };
         }
 
         return new IMOEXIndexTradeDay
         {
-          Date = DateTime.Parse(getValue("tradedate")?.ToString() ?? ""),
-          Open = Convert.ToDouble(getValue("open") ?? 0),
-          High = Convert.ToDouble(getValue("high") ?? 0),
-          Low = Convert.ToDouble(getValue("low") ?? 0),
-          Close = Convert.ToDouble(getValue("close") ?? 0),
-          Volume = Convert.ToDouble(getValue("volume") ?? 0)
+          Date = DateTime.Parse(getValue("tradedate")?.ToString() ?? "").ToUniversalTime(),
+          Open = getDoubleValue("open") ?? 0,
+          High = getDoubleValue("high") ?? 0,
+          Low = getDoubleValue("low") ?? 0,
+          Close = getDoubleValue("close") ?? 0,
+          Volume = getDoubleValue("volume") ?? 0
         };
-      })];
+      }).ToList();
     }
   }
 }

@@ -3,10 +3,12 @@ using FaG.Data.DAL;
 using FaG.Data.IndexModel;
 using FaG.Scheduler.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using TPulse.Client;
+using TPulse.Client.Model;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,18 +39,19 @@ builder.Services.AddTransient<IFagDownloader, TPulseDownloader>();
 var emotionApiUrl = builder.Configuration["EMOTION_API_URL"]
     ?? "http://emotionapi:8080";
 
-builder.Services.AddHttpClient<IFagEvaluater, ApiFagEvaluaterV1>(client =>
+builder.Services.AddHttpClient<IFagEvaluater, ApiFagEvaluaterV1>((provider, client) =>
 {
   client.Timeout = TimeSpan.FromSeconds(30);
+  client.BaseAddress = new Uri(emotionApiUrl);
 })
 .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
   ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
 });
 
-builder.Services.AddSingleton(new ApiFagEvaluaterV1(
-    new HttpClient(),
-    emotionApiUrl));
+//builder.Services.AddSingleton(new ApiFagEvaluaterV1(
+//    new HttpClient(),
+//    emotionApiUrl));
 
 builder.Services.AddHostedService<ScheduledWorker>();
 
@@ -176,16 +179,15 @@ public partial class Program
     var evaluaters = scope.ServiceProvider.GetServices<IFagEvaluater>().ToList();
 
     var moexService = scope.ServiceProvider.GetRequiredService<IMoexDataService>();
+    await LoadIMOEXIndexDataAsync(startUtc, endUtc, db, moexService, token);
 
 
-    var start = startUtc.Date;
-    var end = start.AddDays(1).Date;
+    
+    var end = endUtc.Date;
+    var start = end.Date.AddDays(-1);
 
-    while (end <= endUtc.Date)
+    while (start >= startUtc.Date)
     {
-      await LoadIMOEXIndexDataAsync(startUtc, endUtc, db, moexService, token);
-
-      Console.WriteLine($"Processing posts from {start:yyyy-MM-dd} to {end:yyyy-MM-dd}...");
       var posts = await DownloadAndSaveAllPostsAsync(db, start, end, downloaders, token).ConfigureAwait(false);
 
       if (posts is null)
@@ -195,8 +197,8 @@ public partial class Program
       await CalculateAndSaveFearAndGreadIndexAsync(db, start, evoluations, token).ConfigureAwait(false);
       if (token.IsCancellationRequested)
         break;
-      start = end;
-      end = start.AddDays(1);
+      end = end.AddDays(-1);
+      start = end.AddDays(-1);
     }
   }
 
@@ -210,7 +212,7 @@ public partial class Program
       foreach (var day in imoexData)
       {
         var existing = await db.IMOEXIndex
-            .FirstOrDefaultAsync(i => i.Date.Date == day.Date.Date, token);
+            .FirstOrDefaultAsync(i => i.Date.Date == day.Date.ToUniversalTime().Date, token);
 
         if (existing == null)
         {
@@ -243,8 +245,12 @@ public partial class Program
     List<PostEvaluation> evaluations,
     CancellationToken token)
   {
+    Console.WriteLine($"Building FaG index...");
     try
     {
+      if (evaluations == null || evaluations.Count == 0)
+        return;
+
       var historicalData = await db.FearGreedIndices
         .Where(i => i.Date > date.AddDays(-SimpleIndexModel.NormalizationWindow - 1))
         .OrderByDescending(i => i.Date)
@@ -257,7 +263,8 @@ public partial class Program
 
       
       var fearGreedIndex = model.CalculateForDay(evaluations);
-      fearGreedIndex.Date = date;
+      fearGreedIndex.Date = date.ToUniversalTime();
+      db.FearGreedIndices.Add( fearGreedIndex );
 
       await db.SaveChangesAsync(token).ConfigureAwait(false);
     }
@@ -272,6 +279,8 @@ public partial class Program
     List<IFagEvaluater> evaluaters,
     CancellationToken token)
   {
+    Console.WriteLine($"Evaluating posts...");
+
     List<PostEvaluation> evaluations = [];
 
     Stopwatch stopwatch = new();
@@ -323,7 +332,7 @@ public partial class Program
     {
       try
       {
-        var posts = await dl.DownloadPostsAsync(startUtc, endUtc, token).ConfigureAwait(false);
+        List<UserPost> posts = await dl.DownloadPostsAsync(startUtc, endUtc, token).ConfigureAwait(false);
 
         if (posts != null)
         {
@@ -392,7 +401,7 @@ public partial class Program
     {
       Console.WriteLine($"Processing posts from {start:yyyy-MM-dd} to {end:yyyy-MM-dd}...");
       var posts = await db.Posts
-          .Where(p => p.Date >= start.Date && p.Date < end.Date)
+          .Where(p => p.Date >= start.Date.ToUniversalTime() && p.Date < end.Date.ToUniversalTime())
           .Include(p => p.Evaluations)
           .ToListAsync(token)
           .ConfigureAwait(false);
@@ -407,32 +416,5 @@ public partial class Program
       start = end;
       end = start.AddDays(1);
     }
-  }
-}
-
-/// <summary>
-/// Very small sentiment evaluator stub. Replace with real model integration later.
-/// </summary>
-internal class SentimentEvaluator
-{
-  private static readonly string[] Positive = ["хорош", "отлич", "класс", "👍", "супер", "любл", "профит", "прибыл"];
-  private static readonly string[] Negative = ["плох", "ужас", "⚠", "потер", "убыт", "страш", "жоп", "хз"];
-
-  public static Emotion Evaluate(string text)
-  {
-    if (string.IsNullOrWhiteSpace(text))
-      return Emotion.None;
-
-    var t = text.ToLowerInvariant();
-    var pos = Positive.Count(p => t.Contains(p));
-    var neg = Negative.Count(n => t.Contains(n));
-
-    if (pos == 0 && neg == 0)
-      return Emotion.Neutral;
-
-    if (pos >= neg)
-      return Emotion.Positive;
-
-    return Emotion.Negative;
   }
 }

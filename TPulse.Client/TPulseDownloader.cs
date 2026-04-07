@@ -5,8 +5,9 @@ namespace TPulse.Client
 {
   public class TPulseDownloader : IFagDownloader
   {
+    public string? Cursor { get; set; }
+
     private readonly TPulseApiClient _pulseClient;
-    private string? nextCursor = null;
 
     public TPulseDownloader(TPulseApiClient pulseApiClient)
     {
@@ -15,7 +16,7 @@ namespace TPulse.Client
       _pulseClient = pulseApiClient;
     }
     public async Task<List<UserPost>> DownloadPostsAsync(DateTime start, DateTime end, CancellationToken token = default)
-    {     
+    {
       var posts = new List<UserPost>();
       bool flag = true;
 
@@ -23,22 +24,27 @@ namespace TPulse.Client
       {
         try
         {
-          var response = await _pulseClient.GetPostsAsync(50, nextCursor);
+          var response = await _pulseClient.GetPostsAsync(50, Cursor);
           if (response.Payload?.Items == null || response.Payload.Items.Count == 0)
-            break; 
+            break;
 
           foreach (var post in response.Payload.Items.OrderByDescending(i => i.Inserted))
           {
             if (post.Inserted > end)
               continue;
-
-            if (post.Inserted < start)
-               flag = false;
-
-            posts.Add(post.ToUserPost());
+            else if (post.Inserted < start)
+            {
+              flag = false;
+              break;
+            }
+            else
+            {
+              posts.Add(post.ToUserPost());
+            }
           }
 
-          nextCursor = response.Payload.NextCursor;
+          if (flag)
+            Cursor = response.Payload.NextCursor;
         }
         catch
         {

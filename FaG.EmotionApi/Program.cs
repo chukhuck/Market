@@ -13,7 +13,7 @@ var app = builder.Build();
 app.MapPost("/evaluate", (PostRequest request) =>
 {
 
-    return Results.Json(new EvaluateResponse ( (Emotion) (Random.Shared.Next()%4) ));
+    return Results.Json(new EvaluateResponse ((Emotion)Random.Shared.Next(4)));
 });
 
 app.MapGet("/test", () =>

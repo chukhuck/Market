@@ -11,12 +11,17 @@
     <link rel="stylesheet" href="@Assets["FaG.WebClient.styles.css"]" />
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="_content/Radzen.Blazor/css/default.css" rel="stylesheet" />
     <HeadOutlet />
+    <RadzenTheme Theme="material" />
 </head>
 
 <body>
     <Routes />
     <ReconnectModal />
+    <!-- Plotly и interop должны загружаться ПЕРЕД blazor.web.js -->
+    <script src="/plotly-2.26.0.min.js"></script>
+    <script src="/plotlyInterop.js"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

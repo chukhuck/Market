@@ -1,7 +1,250 @@
 ﻿@page "/"
+@using FaG.Data.DAL
+@using FaG.WebClient.Components.Plotly
+@inject FaG.Data.DAL.FaGDbContext Db
+@rendermode InteractiveServer
 
-<PageTitle>Индекс</PageTitle>
+<PageTitle>Индекс страха и жадности</PageTitle>
 
-<h1>Индекс страха и жадности на основе эмоционального окраса публикаций текстовых сообщений участников торгов на Московской бирже</h1>
+<div class="container-fluid">
+    <h1>Индекс страха и жадности на основе эмоционального окраса публикаций</h1>
+    <p>Расчёт индекса ведётся на основе публикаций в социальной сети для трейдеров "Пульс" и IMOEX</p>
 
-Расчет индекса ведется на основе публикаций в социальной сети для трейдеров "Пульс"
+    @if (_isLoading)
+    {
+        <div class="alert alert-info">Загрузка данных...</div>
+    }
+    else
+    {
+        <!-- Radial Gauge -->
+        <div class="row mb-4">
+            <div class="col-12 col-md-6 offset-md-6 text-center">
+                <h4>Fear & Greed Index (Raw)</h4>
+        <div class="mt-2 small text-muted">
+            Дата: @_currentIndexDateString<br>
+            Значение: @_currentRawIndex
+        </div>
+            </div>
+        </div>
+
+        <!-- Кнопки выбора периода -->
+        <div class="text-center mb-4">
+            <button class="btn btn-outline-primary m-1" @onclick="@(() => SetRangeDays(30))">1 месяц</button>
+            <button class="btn btn-outline-primary m-1" @onclick="@(() => SetRangeDays(90))">Квартал</button>
+            <button class="btn btn-outline-primary m-1" @onclick="@(() => SetRangeDays(180))">Полгода</button>
+            <button class="btn btn-outline-primary m-1" @onclick="@(() => SetRangeDays(365))">Год</button>
+        </div>
+
+        <!-- График -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <LocalPlotlyChart Data="_plotComponents" Layout="_plotLayout" Style="height:600px;width:100%" />
+            </div>
+        </div>
+
+        <!-- Посты -->
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <label class="form-label">Негативный пост (вчера)</label>
+                <textarea class="form-control" rows="6" readonly>@_negativePostText</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Позитивный пост (вчера)</label>
+                <textarea class="form-control" rows="6" readonly>@_positivePostText</textarea>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _isLoading = true;
+
+    // Gauge values
+    private double _currentRawIndex = 0;
+    private string _currentIndexDateString = string.Empty;
+
+    // Chart
+    private int _rangeDays = 30;
+    private List<object> _plotComponents = new();
+    private object _plotLayout = new ();
+
+    // line toggles
+    private bool _showRaw = true;
+    private bool _showSmoothed = true;
+    private bool _showCumulative = true;
+    private bool _showNormalized = false;
+    private bool _showInertial = false;
+
+    // posts
+    private string _negativePostText = string.Empty;
+    private string _positivePostText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        Console.WriteLine("Home.razor: OnInitializedAsync started");
+        try
+        {
+            await LoadLatestIndexAsync();
+            Console.WriteLine("Home.razor: LoadLatestIndexAsync completed");
+            await LoadYesterdayPostsAsync();
+            Console.WriteLine("Home.razor: LoadYesterdayPostsAsync completed");
+            await LoadChartDataAsync();
+            Console.WriteLine("Home.razor: LoadChartDataAsync completed");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка инициализации: {ex.Message}\n{ex.StackTrace}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadLatestIndexAsync()
+    {
+        try
+        {
+            var last = await Db.FearGreedIndices
+                .OrderByDescending(i => i.Date)
+                .FirstOrDefaultAsync();
+
+            if (last != null)
+            {
+                _currentRawIndex = last.RawIndex;
+                _currentIndexDateString = last.Date.ToString("yyyy-MM-dd");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки последнего индекса: {ex.Message}");
+        }
+    }
+
+    private async Task SetRangeDays(int days)
+    {
+        _rangeDays = days;
+        await LoadChartDataAsync();
+    }
+
+    private async Task LoadChartDataAsync()
+    {
+        try
+        {
+            var end = DateTime.UtcNow.Date;
+            var start = end.AddDays(-_rangeDays + 1);
+
+            // Данные IMOEX для свечного графика
+            var prices = await Db.IMOEXIndex
+                .Where(d => d.Date >= start && d.Date <= end)
+                .OrderBy(d => d.Date)
+                .ToListAsync();
+
+            // Данные индекса страха и жадности
+            var indices = await Db.FearGreedIndices
+                .Where(i => i.Date >= start && i.Date <= end)
+                .OrderBy(i => i.Date)
+                .ToListAsync();
+
+            // Подготовка данных для IMOEX
+            var xPrices = prices.Select(p => p.Date.ToString("yyyy-MM-dd")).ToArray();
+            var open = prices.Select(p => p.Open).Cast<object>().ToArray();
+            var high = prices.Select(p => p.High).Cast<object>().ToArray();
+            var low = prices.Select(p => p.Low).Cast<object>().ToArray();
+            var close = prices.Select(p => p.Close).Cast<object>().ToArray();
+
+            // Подготовка данных для индекса
+            var idxDates = indices.Select(i => i.Date.ToString("yyyy-MM-dd")).ToArray();
+            var raw = indices.Select(i => i.RawIndex).Cast<object>().ToArray();
+            var smooth = indices.Select(i => i.SmoothedIndex).Cast<object>().ToArray();
+            var cumul = indices.Select(i => i.CumulativeIndex).Cast<object>().ToArray();
+            var norm = indices.Select(i => i.NormalizedCumulative).Cast<object>().ToArray();
+            var inert = indices.Select(i => i.InertialCumulative).Cast<object>().ToArray();
+
+            var traces = new List<object>();
+
+            // Свечной график IMOEX (anonymous objects for JS Plotly)
+            traces.Add(new
+            {
+                type = "candlestick",
+                x = xPrices,
+                open = open,
+                high = high,
+                low = low,
+                close = close,
+                name = "IMOEX"
+            });
+
+            // Графики индекса на второй шкале
+            if (_showRaw)
+                traces.Add(new { x = idxDates, y = raw, type = "scatter", mode = "lines", name = "Raw Index", yaxis = "y2" });
+            if (_showSmoothed)
+                traces.Add(new { x = idxDates, y = smooth, type = "scatter", mode = "lines", name = "Smoothed", yaxis = "y2" });
+            if (_showCumulative)
+                traces.Add(new { x = idxDates, y = cumul, type = "scatter", mode = "lines", name = "Cumulative", yaxis = "y2" });
+            if (_showNormalized)
+                traces.Add(new { x = idxDates, y = norm, type = "scatter", mode = "lines", name = "Normalized", yaxis = "y2" });
+            if (_showInertial)
+                traces.Add(new { x = idxDates, y = inert, type = "scatter", mode = "lines", name = "Inertial", yaxis = "y2" });
+
+            _plotComponents = traces;
+
+            _plotLayout = new {
+                title = "IMOEX + Fear & Greed Index",
+                xaxis = new { title = "Date", rangeslider = new { visible = false } },
+                yaxis = new { title = "Price", domain = new double[] { 0.2, 1.0 } },
+                yaxis2 = new { title = "Index", overlaying = "y", side = "right", range = new double[] { -10, 110 } },
+                legend = new { orientation = "h" },
+                margin = new { t = 50, b = 40, l = 60, r = 60 }
+            };
+
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки графика: {ex.Message}");
+        }
+    }
+
+    private async Task LoadYesterdayPostsAsync()
+    {
+        try
+        {
+            var yesterday = DateTime.UtcNow.Date.AddDays(-1);
+
+            // Получаем негативный пост (один случайный)
+            var negativePost = await Db.Posts
+            .Join(Db.Evaluations,
+            p => p.Id,
+            e => e.PostId,
+            (p, e) => new { Post = p, Evaluation = e })
+            .Where(x => x.Evaluation.Emotion == Emotion.Negative &&
+            x.Post.Date.Date == yesterday)
+            .Select(x => x.Post.Text)
+            .FirstOrDefaultAsync();
+
+            _negativePostText = negativePost ?? "Негативных постов за вчера не найдено";
+
+            // Получаем позитивный пост (один случайный)
+            var positivePost = await Db.Posts
+            .Join(Db.Evaluations,
+            p => p.Id,
+            e => e.PostId,
+            (p, e) => new { Post = p, Evaluation = e })
+            .Where(x => x.Evaluation.Emotion == Emotion.Positive &&
+            x.Post.Date.Date == yesterday)
+            .Select(x => x.Post.Text)
+            .FirstOrDefaultAsync();
+
+            _positivePostText = positivePost ?? "Позитивных постов за вчера не найдено";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка загрузки постов: {ex.Message}");
+            _negativePostText = "Ошибка загрузки";
+            _positivePostText = "Ошибка загрузки";
+        }
+    }
+}

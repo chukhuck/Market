@@ -1,0 +1,55 @@
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components
+@inject IJSRuntime JS
+
+<div id="@Id" style="@Style"></div>
+
+@code {
+  [Parameter] public object? Data { get; set; }
+  [Parameter] public object? Layout { get; set; }
+  [Parameter] public string Id { get; set; } = $"plot_{Guid.NewGuid():N}";
+  [Parameter] public string Style { get; set; } = "width:100%;height:520px;";
+
+  protected override async Task OnParametersSetAsync()
+  {
+    await Task.Delay(100); // дать DOM время инициализироваться
+    await RenderAsync();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      await RenderAsync();
+    }
+  }
+
+  public async Task RenderAsync()
+  {
+    try
+    {
+      // Проверяем, что Plotly и renderPlotly доступны
+      var plotlyExists = await JS.InvokeAsync<bool>("eval", "typeof Plotly !== 'undefined'");
+      var renderExists = await JS.InvokeAsync<bool>("eval", "typeof window.renderPlotly !== 'undefined'");
+
+      if (!plotlyExists)
+      {
+        Console.WriteLine("ERROR: Plotly library is not loaded");
+        return;
+      }
+
+      if (!renderExists)
+      {
+        Console.WriteLine("ERROR: renderPlotly function is not defined");
+        return;
+      }
+
+      await JS.InvokeVoidAsync("renderPlotly", Id, Data ?? Array.Empty<object>(), Layout ?? new { });
+      Console.WriteLine($"Chart rendered successfully on element {Id}");
+    }
+    catch (Exception ex)
+    {
+      Console.WriteLine($"Plotly render error: {ex.Message}");
+    }
+  }
+}

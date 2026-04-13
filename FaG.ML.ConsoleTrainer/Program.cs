@@ -38,9 +38,10 @@ var metrics = builder.Evaluate(testPath);
 
 builder.SaveModel(modelPath);
 
-Console.WriteLine($"Macro Accuracy: {metrics.MacroAccuracy:P2}");
-Console.WriteLine($"Micro Accuracy: {metrics.MicroAccuracy:P2}");
-Console.WriteLine($"Log Loss: {metrics.LogLoss:F4}");
+Console.WriteLine($"\n=== Метрики регрессии ===");
+Console.WriteLine($"MAE (Mean Absolute Error): {metrics.MeanAbsoluteError:F4}");
+Console.WriteLine($"RMSE (Root Mean Squared Error): {metrics.RootMeanSquaredError:F4}");
+Console.WriteLine($"R² (R-squared): {metrics.RSquared:F4}");
 
 
 //5. Пример предсказания

@@ -43,23 +43,5 @@ namespace FaG.ML.Models
     /// </summary>
     [LoadColumn(6)]
     public string Tickers { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Computed label for classification (0=Negative, 1=Neutral, 2=Positive)
-    /// </summary>
-    public uint Label { get; set; }
-
-    /// <summary>
-    /// Converts continuous sentiment score to discrete emotion class
-    /// </summary>
-    public void ComputeLabel()
-    {
-      Label = Score switch
-      {
-        < -0.33f => 0,  // Negative
-        <= 0.33f and >= -0.33f => 1,  // Neutral
-        _ => 2           // Positive
-      };
-    }
   }
 }

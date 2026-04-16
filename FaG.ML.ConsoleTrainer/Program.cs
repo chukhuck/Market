@@ -3,7 +3,7 @@ using FaG.ML.Services;
 using FaG.ML.Training;
 using FaG.ML.Utilities;
 
-var datasetPath = "Data/webofrussia.tsv";
+var datasetPath = "Data/processed_webofrussia.tsv";
 var trainPath = "Data/train.tsv";
 var testPath = "Data/test.tsv";
 var modelPath = "./Models/SentimentModel.zip";
@@ -13,7 +13,7 @@ Console.WriteLine("📊 Анализ датасета:");
 var stats = DatasetUtilities.AnalyzeDataset(datasetPath);
 Console.WriteLine(stats);
 
-if (DatasetUtilities.ValidateDataset("Data/webofrussia.tsv", out var errors))
+if (DatasetUtilities.ValidateDataset(datasetPath, out var errors))
 {
   Console.WriteLine("✅ Датасет валиден");
 }
@@ -67,5 +67,5 @@ foreach (var pred in predictions)
 {
   Console.WriteLine($"📝 {pred.Text}");
   Console.WriteLine($"🎯 {pred.Emotion}");
-  Console.WriteLine($"📈 Уверенность: {pred.Confidence:P2}");
+  Console.WriteLine($"📈 Score: {pred.Score:P2}");
 }

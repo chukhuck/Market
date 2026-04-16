@@ -135,6 +135,6 @@ namespace FaG.ML.Services
     /// Formats sentiment prediction for display
     /// </summary>
     public static string FormatPrediction(this SentimentPrediction prediction) =>
-        $"{prediction.Emotion.GetEmotionEmoji()} {prediction.Emotion.GetEmotionDescription()} (уверенность: {prediction.Confidence:P1})";
+        $"{prediction.Emotion.GetEmotionEmoji()} {prediction.Emotion.GetEmotionDescription()} (score: {prediction.Score:P1})";
   }
 }

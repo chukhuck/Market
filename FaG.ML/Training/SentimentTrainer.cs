@@ -70,7 +70,8 @@ namespace FaG.ML.Training
                 "Производство сокращено на 30% из-за проблем в цепи поставок",
                 "Акции компании торгуются стабильно без значительных изменений",
                 "Убытки компании увеличились вдвое на фоне кризиса",
-                "Новый продукт получил высокие оценки от аналитиков"
+                "Новый продукт получил высокие оценки от аналитиков",
+                "Яндекс увеличил прибыль на $1 млрд"
             };
 
       foreach (var text in sampleTexts)
@@ -81,10 +82,7 @@ namespace FaG.ML.Training
 
           Console.WriteLine($"\n📝 Text: {text[..Math.Min(60, text.Length)]}...");
           Console.WriteLine($"🎯 Prediction: {prediction.Emotion}");
-          Console.WriteLine($"📈 Confidence: {prediction.Confidence:P2}");
-          Console.WriteLine($"   Negative: {prediction.SentimentScores.NegativeScore:P2}");
-          Console.WriteLine($"   Neutral:  {prediction.SentimentScores.NeutralScore:P2}");
-          Console.WriteLine($"   Positive: {prediction.SentimentScores.PositiveScore:P2}");
+          Console.WriteLine($"📈 Score: {prediction.Score}");
         }
         catch (Exception ex)
         {

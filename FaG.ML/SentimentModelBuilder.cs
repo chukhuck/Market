@@ -2,22 +2,19 @@ using FaG.Data.DAL;
 using FaG.ML.Models;
 using Microsoft.ML;
 using Microsoft.ML.Data;
-using Microsoft.ML.Transforms;
 using Microsoft.ML.Transforms.Text;
 
 namespace FaG.ML
 {
-  /// <summary>
-  /// Regression prediction result
-  /// </summary>
-  public class RegressionPrediction
+  public class SentimentPrediction
   {
-    [ColumnName("Score")]
     public float Score { get; set; }
 
-    [ColumnName("PredictedScore")]
-    public float PredictedScore { get; set; }
+    public string? Text { get; set; }
+
+    public Emotion Emotion { get; set; }
   }
+
 
   /// <summary>
   /// Builder for training and using sentiment analysis models
@@ -39,31 +36,24 @@ namespace FaG.ML
     /// <returns>Trained model transformer</returns>
     public ITransformer BuildAndTrain(string dataPath)
     {
-      var rawData = _mlContext.Data.LoadFromTextFile<TextSentiment>(
+      var trainData = _mlContext.Data.LoadFromTextFile<TextSentimentInput>(
             dataPath,
             hasHeader: true,
             separatorChar: '\t',
             allowQuoting: true);
 
-      var transformedData = _mlContext.Data.CreateEnumerable<TextSentiment>(rawData, reuseRowObject: false)
-          .Select(x => new TextSentiment
-          {
-            Title = x.Title,
-            Score = x.Score,
-            Link = x.Link,
-            Summary = x.Summary,
-            Published = x.Published,
-            Tickers = x.Tickers
-          })
-          .ToList();
 
-      var trainData = _mlContext.Data.LoadFromEnumerable(transformedData);
+
 
       // Build ML pipeline
       var pipeline = BuildPipeline();
 
       // Train the model
       _model = pipeline.Fit(trainData);
+
+      var scores = _mlContext.Data.CreateEnumerable<TextSentimentInput>(trainData, reuseRowObject: false)
+        .Select(x => x.ToneScore)
+        .ToList();
 
       return _model;
     }
@@ -74,11 +64,23 @@ namespace FaG.ML
     private IEstimator<ITransformer> BuildPipeline()
     {
       return _mlContext.Transforms
-          .Text.NormalizeText(outputColumnName: "NormalizedText", inputColumnName: nameof(TextSentiment.Summary))
+          .Text.NormalizeText(outputColumnName: "NormalizedText", inputColumnName: nameof(TextSentimentInput.Summary))
           .Append(_mlContext.Transforms.Text.TokenizeIntoWords("Tokens", "NormalizedText"))
-          .Append(_mlContext.Transforms.Text.FeaturizeText("Features", "NormalizedText"))
+          .Append(_mlContext.Transforms.Text.RemoveDefaultStopWords("FilteredTokens", "Tokens", language: Microsoft.ML.Transforms.Text.StopWordsRemovingEstimator.Language.Russian))
+          .Append(_mlContext.Transforms.Text.FeaturizeText(
+            "Features",
+            new TextFeaturizingEstimator.Options()
+            {
+              WordFeatureExtractor = new WordBagEstimator.Options  // явно указываем TF-IDF
+              {
+                Weighting = NgramExtractingEstimator.WeightingCriteria.Idf,
+                NgramLength = 2,      // триграммы для контекста
+                UseAllLengths = true   // униграммы + биграммы + триграммы 
+              }
+            },
+            "FilteredTokens"))
           .Append(_mlContext.Regression.Trainers.Sdca(
-              labelColumnName: nameof(TextSentiment.Score),
+              labelColumnName: nameof(TextSentimentInput.ToneScore),
               featureColumnName: "Features"));
     }
 
@@ -90,37 +92,18 @@ namespace FaG.ML
       if (_model == null)
         throw new InvalidOperationException("Model has not been trained. Call BuildAndTrain first.");
 
-      var rawTestData = _mlContext.Data.LoadFromTextFile<TextSentiment>(
+      var rawTestData = _mlContext.Data.LoadFromTextFile<TextSentimentInput>(
       testDataPath,
       hasHeader: true,
       separatorChar: '\t',
       allowQuoting: true);
 
-      var testTransformed = _mlContext.Data.CreateEnumerable<TextSentiment>(rawTestData, reuseRowObject: false)
-          .Select(x => new TextSentiment
-          {
-            Title = x.Title,
-            Score = x.Score,
-            Link = x.Link,
-            Summary = x.Summary,
-            Published = x.Published,
-            Tickers = x.Tickers
-          })
-          .ToList();
-
-      var testDataTransformed = _mlContext.Data.LoadFromEnumerable(testTransformed);
-      var predictions = _model.Transform(testDataTransformed);
-
-      //var results = _mlContext.Data.CreateEnumerable<RegressionPrediction>(predictions, reuseRowObject: false);
-      //foreach (var result in results)
-      //{
-      //  Console.WriteLine($"Actual Score: {result.Score:F3}, Predicted Score: {result.PredictedScore:F3}");
-      //}
+      var predictions = _model.Transform(rawTestData);
 
       var metrics = _mlContext.Regression.Evaluate(
           predictions,
-          labelColumnName: nameof(TextSentiment.Score),
-          scoreColumnName: "PredictedScore");
+          labelColumnName: nameof(TextSentimentInput.ToneScore),
+          scoreColumnName: "Score");
 
       return metrics;
     }
@@ -133,18 +116,18 @@ namespace FaG.ML
       if (_model == null)
         throw new InvalidOperationException("Model has not been trained. Call BuildAndTrain first.");
 
-      var predictionEngine = _mlContext.Model.CreatePredictionEngine<TextSentiment, RegressionPrediction>(_model);
+      var predictionEngine = _mlContext.Model.CreatePredictionEngine<TextSentimentInput, TextSentimentOutput>(_model);
 
-      var sample = new TextSentiment { Summary = text };
+      var sample = new TextSentimentInput { Summary = text };
       var prediction = predictionEngine.Predict(sample);
 
       // Clamp the predicted score to [-1, 1] range
-      var clampedScore = Math.Clamp(prediction.PredictedScore, -1f, 1f);
+      var clampedScore = Math.Clamp(prediction.Score, -1f, 1f);
 
       return new SentimentPrediction
       {
         Text = text,
-        PredictedScore = clampedScore,
+        Score = clampedScore,
         Emotion = ConvertScoreToEmotion(clampedScore)
       };
     }
@@ -210,66 +193,5 @@ namespace FaG.ML
     /// Gets the current model transformer
     /// </summary>
     public ITransformer? GetModel() => _model;
-  }
-
-  /// <summary>
-  /// Helper class for model evaluation results
-  /// </summary>
-  public class ModelEvaluationReport
-  {
-    public double MacroAccuracy { get; set; }
-    public double MicroAccuracy { get; set; }
-    public double LogLoss { get; set; }
-    public double LogLossReduction { get; set; }
-    public ConfusionMatrix ConfusionMatrix { get; set; } = new();
-
-    public override string ToString()
-    {
-      return $@"
-=== Model Evaluation Report ===
-Macro Accuracy: {MacroAccuracy:P4}
-Micro Accuracy: {MicroAccuracy:P4}
-Log Loss: {LogLoss:F4}
-Log Loss Reduction: {LogLossReduction:F4}
-
-Confusion Matrix:
-{ConfusionMatrix}
-";
-    }
-  }
-
-  /// <summary>
-  /// Confusion matrix for multi-class classification
-  /// </summary>
-  public class ConfusionMatrix
-  {
-    private int[,]? _matrix;
-
-    public void SetMatrix(int[,] matrix)
-    {
-      _matrix = matrix;
-    }
-
-    public override string ToString()
-    {
-      if (_matrix == null)
-        return "Matrix not set";
-
-      var sb = new System.Text.StringBuilder();
-      var labels = new[] { "Negative", "Neutral", "Positive" };
-
-      sb.AppendLine("       Predicted Negative  Neutral  Positive");
-      for (int i = 0; i < _matrix.GetLength(0); i++)
-      {
-        sb.Append($"{labels[i],8}");
-        for (int j = 0; j < _matrix.GetLength(1); j++)
-        {
-          sb.Append($"{_matrix[i, j],9}");
-        }
-        sb.AppendLine();
-      }
-
-      return sb.ToString();
-    }
   }
 }

@@ -7,8 +7,16 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
     <PackageReference Include="Microsoft.ML" Version="5.0.0" />
+    <PackageReference Include="Microsoft.ML.FastTree" Version="3.0.1" />
+    <PackageReference Include="Microsoft.ML.LightGbm" Version="3.0.1" />
+    <PackageReference Include="Microsoft.ML.TorchSharp" Version="0.21.1" />
+    <PackageReference Include="Plotly.NET" Version="3.0.1" />
+    <PackageReference Include="TorchSharp-cpu" Version="0.101.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FaG.Data\FaG.Data.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="AutoModel\" />
   </ItemGroup>
 </Project>

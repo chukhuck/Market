@@ -10,13 +10,13 @@ namespace FaG.ML.Models
     /// <summary>
     /// Column 1: Sentiment score from -1 (negative) to 1 (positive)
     /// </summary>
-    [LoadColumn(0)]
-    public float ToneScore { get; set; }
+    [LoadColumn(1)]
+    public float Sentiment_Score { get; set; }
 
     /// <summary>
     /// Column 3: Article summary/text content - used for sentiment analysis
     /// </summary>
-    [LoadColumn(1)]
-    public string Summary { get; set; } = string.Empty;
+    [LoadColumn(2)]
+    public string Body { get; set; } = string.Empty;
   }
 }

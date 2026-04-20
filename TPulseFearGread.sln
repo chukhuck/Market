@@ -32,6 +32,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaG.WebClient", "FaG.WebCli
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaG.ML.ConsoleTrainer", "FaG.ML.ConsoleTrainer\FaG.ML.ConsoleTrainer.csproj", "{3AFB4007-1F49-4413-A682-7EF49761CF43}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaG.ML.RussianFinancialNewsParser", "FaG.ML.RussianFinancialNewsParser\FaG.ML.RussianFinancialNewsParser.csproj", "{D3398AEF-4D5A-4604-89D7-4947110ED6DB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -74,6 +76,10 @@ Global
 		{3AFB4007-1F49-4413-A682-7EF49761CF43}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3AFB4007-1F49-4413-A682-7EF49761CF43}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3AFB4007-1F49-4413-A682-7EF49761CF43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3398AEF-4D5A-4604-89D7-4947110ED6DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3398AEF-4D5A-4604-89D7-4947110ED6DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3398AEF-4D5A-4604-89D7-4947110ED6DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3398AEF-4D5A-4604-89D7-4947110ED6DB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -88,6 +94,7 @@ Global
 		{1D476849-AE77-6CD9-331B-CA4B200C5DAA} = {36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}
 		{9C3CADEA-165E-42A0-9483-B42229DCE684} = {36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}
 		{3AFB4007-1F49-4413-A682-7EF49761CF43} = {36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}
+		{D3398AEF-4D5A-4604-89D7-4947110ED6DB} = {36D591C7-65C7-A0D1-1CBC-10CDE441BDC8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {97476022-C297-4061-9A34-70F724723CC8}

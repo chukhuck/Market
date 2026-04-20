@@ -1,8 +1,11 @@
 using FaG.Data.DAL;
 using FaG.ML.Models;
+using FaG.ML.Utilities;
 using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.Transforms.Text;
+using static TorchSharp.torch.utils;
 
 namespace FaG.ML
 {
@@ -40,20 +43,14 @@ namespace FaG.ML
             dataPath,
             hasHeader: true,
             separatorChar: '\t',
-            allowQuoting: true);
-
-
-
+            allowQuoting: true,
+            trimWhitespace: true);
 
       // Build ML pipeline
       var pipeline = BuildPipeline();
 
       // Train the model
       _model = pipeline.Fit(trainData);
-
-      var scores = _mlContext.Data.CreateEnumerable<TextSentimentInput>(trainData, reuseRowObject: false)
-        .Select(x => x.ToneScore)
-        .ToList();
 
       return _model;
     }
@@ -63,25 +60,37 @@ namespace FaG.ML
     /// </summary>
     private IEstimator<ITransformer> BuildPipeline()
     {
+      //var tokenizer = new RuBertTokenizer("./Data/onnx/rubert-tiny2-onnx/vocab.txt");
+
       return _mlContext.Transforms
-          .Text.NormalizeText(outputColumnName: "NormalizedText", inputColumnName: nameof(TextSentimentInput.Summary))
-          .Append(_mlContext.Transforms.Text.TokenizeIntoWords("Tokens", "NormalizedText"))
-          .Append(_mlContext.Transforms.Text.RemoveDefaultStopWords("FilteredTokens", "Tokens", language: Microsoft.ML.Transforms.Text.StopWordsRemovingEstimator.Language.Russian))
-          .Append(_mlContext.Transforms.Text.FeaturizeText(
-            "Features",
-            new TextFeaturizingEstimator.Options()
-            {
-              WordFeatureExtractor = new WordBagEstimator.Options  // явно указываем TF-IDF
-              {
-                Weighting = NgramExtractingEstimator.WeightingCriteria.Idf,
-                NgramLength = 2,      // триграммы для контекста
-                UseAllLengths = true   // униграммы + биграммы + триграммы 
-              }
-            },
-            "FilteredTokens"))
-          .Append(_mlContext.Regression.Trainers.Sdca(
-              labelColumnName: nameof(TextSentimentInput.ToneScore),
+          .Text.NormalizeText(
+              outputColumnName: "NormalizedText",
+              inputColumnName: nameof(TextSentimentInput.Body),
+              caseMode: TextNormalizingEstimator.CaseMode.Lower)
+          .Append(_mlContext.Transforms.CustomMapping<TextSentimentInput, BertTokenOutput>(
+            mapAction: TokenizeMappings.TokenizeMapping, 
+            contractName: nameof(TokenizeMappings.TokenizeMapping)))
+          //.Append(_mlContext.Transforms.CustomMapping<TextSentimentInput, BertTokenOutput>(
+          //    mapAction: (input, output) =>
+          //    {
+          //      (output.InputIds, output.AttentionMask) = tokenizer.Tokenize(input.Body);
+          //    },
+          //    contractName: "RuBertTokenizer"))
+          .Append(_mlContext.Transforms.ApplyOnnxModel(
+              modelFile: "Data/onnx/rubert-tiny2-onnx/model.onnx",
+              outputColumnNames: new[] { "tanh" },
+              inputColumnNames: new[] { "input_ids", "attention_mask" }))
+          .Append(_mlContext.Transforms.Conversion.ConvertType(
+              outputColumnName: "Features",
+              inputColumnName: "tanh",
+              DataKind.Single))
+          .Append(_mlContext.Transforms.NormalizeMinMax(
+              outputColumnName: "Features",
+              inputColumnName: "Features"))
+          .Append(_mlContext.Regression.Trainers.LightGbm(
+              labelColumnName: nameof(TextSentimentInput.Sentiment_Score),
               featureColumnName: "Features"));
+
     }
 
     /// <summary>
@@ -102,7 +111,7 @@ namespace FaG.ML
 
       var metrics = _mlContext.Regression.Evaluate(
           predictions,
-          labelColumnName: nameof(TextSentimentInput.ToneScore),
+          labelColumnName: nameof(TextSentimentInput.Sentiment_Score),
           scoreColumnName: "Score");
 
       return metrics;
@@ -118,7 +127,7 @@ namespace FaG.ML
 
       var predictionEngine = _mlContext.Model.CreatePredictionEngine<TextSentimentInput, TextSentimentOutput>(_model);
 
-      var sample = new TextSentimentInput { Summary = text };
+      var sample = new TextSentimentInput { Body = text };
       var prediction = predictionEngine.Predict(sample);
 
       // Clamp the predicted score to [-1, 1] range
@@ -139,8 +148,8 @@ namespace FaG.ML
     {
       return score switch
       {
-        < -0.33f => Emotion.Negative,
-        <= 0.33f and >= -0.33f => Emotion.Neutral,
+        < -0.25f => Emotion.Negative,
+        <= 0.25f and >= -0.25f => Emotion.Neutral,
         _ => Emotion.Positive
       };
     }
@@ -186,6 +195,7 @@ namespace FaG.ML
       if (!File.Exists(modelPath))
         throw new FileNotFoundException($"Model file not found: {modelPath}");
 
+      _mlContext.ComponentCatalog.RegisterAssembly(typeof(TokenizeMappings).Assembly);
       _model = _mlContext.Model.Load(modelPath, out _);
     }
 

@@ -31,7 +31,7 @@ namespace FaG.ML.Utilities
 
           stats.TotalRecords++;
 
-          if (float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var score))
+          if (float.TryParse(parts[1], NumberStyles.Float|NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var score))
           {
             stats.ScoreSum += score;
             stats.ScoreMin = Math.Min(stats.ScoreMin, score);
@@ -113,7 +113,7 @@ namespace FaG.ML.Utilities
       }
 
       var headerColumns = lines[0].Split('\t');
-      if (headerColumns.Length != 2)
+      if (headerColumns.Length < 2)
       {
         errors.Add($"Expected 2 columns, found {headerColumns.Length}");
         return false;
@@ -123,18 +123,18 @@ namespace FaG.ML.Utilities
       for (int i = 1; i < Math.Min(lines.Length, 100); i++) // Check first 100 rows
       {
         var parts = lines[i].Split('\t');
-        if (parts.Length != 2)
+        if (parts.Length < 2)
         {
           invalidRows++;
           errors.Add($"Row {i + 1}: Invalid tab '{lines[i]}'");
           continue;
         }
 
-        if (!float.TryParse(parts[0], NumberStyles.Float | NumberStyles.Number, CultureInfo.InvariantCulture, out var score) ||
+        if (!float.TryParse(parts[1], NumberStyles.Float | NumberStyles.Number, CultureInfo.InvariantCulture, out var score) ||
             score < -1f || score > 1f)
         {
           invalidRows++;
-          errors.Add($"Row {i + 1}: Invalid score value '{parts[0]}'");
+          errors.Add($"Row {i + 1}: Invalid score value '{parts[1]}'");
         }
       }
 

@@ -6,7 +6,7 @@ using FaG.ML.Utilities;
 var datasetPath = "Data/RussianFinancialNews_ya_balance_body.tsv";
 var trainPath = "Data/train.tsv";
 var testPath = "Data/test.tsv";
-var modelPath = "./Models/SentimentModelYaBalanced_rubert_LightGbm.zip";
+var modelPath = "Models/SentimentModelYaBalanced_rubert_LightGbm.zip";
 
 //// 1. Анализ исходного датасета
 //Console.WriteLine("📊 Анализ датасета:");

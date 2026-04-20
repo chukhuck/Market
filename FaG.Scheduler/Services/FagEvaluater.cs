@@ -7,7 +7,7 @@ namespace FaG.Scheduler.Services
 {
   public record PostRequest(string Text);
 
-  public record EvaluateResponse(Emotion Emotion);
+  public record EvaluateResponse(float Score);
 
   public class ApiFagEvaluaterV1 : IFagEvaluater
   {
@@ -35,11 +35,13 @@ namespace FaG.Scheduler.Services
         var responseJson = await response.Content.ReadAsStringAsync(token);
         var result = JsonSerializer.Deserialize<EvaluateResponse>(responseJson,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        float trueScore = result?.Score ?? 0f;
+
 
         return new PostEvaluation
         {
           PostId = post.Id,
-          Emotion = result?.Emotion ?? Emotion.Neutral,
+          Emotion = trueScore < -0.25 ? Emotion.Negative : trueScore > 0.25 ? Emotion.Positive : Emotion.Neutral,
           Evaluator = Name,
           Date = DateTime.UtcNow
         };

@@ -13,5 +13,17 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FaG.Data\FaG.Data.csproj" />
+    <ProjectReference Include="..\FaG.ML\FaG.ML.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Data\onnx\model.onnx.data">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\onnx\SentimentModel.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Data\onnx\vocab.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

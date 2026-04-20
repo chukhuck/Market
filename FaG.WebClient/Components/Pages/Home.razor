@@ -220,7 +220,7 @@
             p => p.Id,
             e => e.PostId,
             (p, e) => new { Post = p, Evaluation = e })
-            .Where(x => x.Evaluation.Emotion == Emotion.Negative &&
+            .Where(x => x.Evaluation.Score < -0.25 &&
             x.Post.Date.Date == yesterday)
             .Select(x => x.Post.Text)
             .FirstOrDefaultAsync();
@@ -233,7 +233,7 @@
             p => p.Id,
             e => e.PostId,
             (p, e) => new { Post = p, Evaluation = e })
-            .Where(x => x.Evaluation.Emotion == Emotion.Positive &&
+            .Where(x => x.Evaluation.Score > 0.25 &&
             x.Post.Date.Date == yesterday)
             .Select(x => x.Post.Text)
             .FirstOrDefaultAsync();

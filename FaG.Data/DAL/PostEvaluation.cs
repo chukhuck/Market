@@ -15,5 +15,6 @@ namespace FaG.Data.DAL
     public string Evaluator { get; set; } = string.Empty;
 
     public UserPost Post { get; set; } = null!;
+    public float Score { get; set; }
   }
 }

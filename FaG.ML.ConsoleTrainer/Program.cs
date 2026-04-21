@@ -2,6 +2,7 @@
 using FaG.ML.Services;
 using FaG.ML.Training;
 using FaG.ML.Utilities;
+using System.Text;
 
 var datasetPath = "Data/RussianFinancialNews_ya_balance_body.tsv";
 var trainPath = "Data/train.tsv";
@@ -48,24 +49,49 @@ var modelPath = "Models/SentimentModelYaBalanced_rubert_LightGbm.zip";
 var service = new SentimentAnalysisService(new SentimentModelBuilder());
 service.InitializeModel(modelPath);
 
-var prediction = await service.AnalyzeSentimentAsync(
-    "Компания показала рекордный рост прибыли"
-);
 
-Console.WriteLine(prediction.FormatPrediction());
+var lines = File.ReadAllLines("Data/posts_export.csv");
 
-var texts = new[]
+StringBuilder sb = new StringBuilder();
+
+StringBuilder sb1 = new StringBuilder();
+
+foreach (var line in lines)
 {
-    "Убытки компании растут",
-    "Акции торгуются стабильно",
-    "Новый продукт имеет успех"
-};
-
-var predictions = await service.AnalyzeSentimentBatchAsync(texts);
-
-foreach (var pred in predictions)
-{
-  Console.WriteLine($"📝 {pred.Text}");
-  Console.WriteLine($"🎯 {pred.Emotion}");
-  Console.WriteLine($"📈 Score: {pred.Score}");
+  var parts = line.Split(';');
+  if (parts.Length < 2) continue;
+  var id = parts[0];
+  var text = parts[1];
+  var pred = await service.AnalyzeSentimentAsync(text);
+  sb.AppendLine($"{id};{pred.Score:F4};{text}");
+  sb1.AppendLine($"{id};{pred.Score:F4}");
+  Console.WriteLine($"Post ID: {id}");
+  Console.WriteLine($"Text: {text}");
+  Console.WriteLine($"Emotion: {pred.Emotion}, Score: {pred.Score}");
+  Console.WriteLine(new string('-', 40));
 }
+
+File.WriteAllText("Data/posts_with_predictions.csv", sb.ToString());
+File.WriteAllText("Data/posts_with_scores.csv", sb1.ToString());
+
+//var prediction = await service.AnalyzeSentimentAsync(
+//    "Компания показала рекордный рост прибыли"
+//);
+//
+//Console.WriteLine(prediction.FormatPrediction());
+//
+//var texts = new[]
+//{
+//    "Убытки компании растут",
+//    "Акции торгуются стабильно",
+//    "Новый продукт имеет успех"
+//};
+//
+//var predictions = await service.AnalyzeSentimentBatchAsync(texts);
+//
+//foreach (var pred in predictions)
+//{
+//  Console.WriteLine($"📝 {pred.Text}");
+//  Console.WriteLine($"🎯 {pred.Emotion}");
+//  Console.WriteLine($"📈 Score: {pred.Score}");
+//}

@@ -7,6 +7,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Text;
 using TPulse.Client;
 using TPulse.Client.Model;
 
@@ -74,6 +75,92 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapGet("/", () => Results.Ok("FaG.Scheduler Web API is running"));
+
+app.MapGet("/upload", async (HttpContext ctx) =>
+{
+
+  try
+  {
+    using var scope = ctx.RequestServices.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
+
+    foreach (var line in File.ReadAllLines("data.csv"))
+    {
+      var parts = line.Split(';');
+
+      if (parts.Length != 2)
+      {
+        continue;
+      }
+
+      if (int.TryParse(parts[0], out var id))
+      {
+        if (float.TryParse(parts[1], out var score))
+        {
+
+            var eval = db.Evaluations.FirstOrDefault(p => p.PostId == id);
+
+            if (eval != null)
+            {
+              eval.Score = score;
+              eval.Emotion = (score < -0.25 ? Emotion.Negative : score > 0.25 ? Emotion.Positive : Emotion.Neutral);
+            }
+          
+        }
+      }
+    }
+    db.SaveChanges();
+    
+
+    return Results.Ok("Done");
+  }
+  catch (OperationCanceledException)
+  {
+    return Results.StatusCode((int)HttpStatusCode.RequestTimeout);
+  }
+  catch (Exception ex)
+  {
+    return Results.Problem(ex.Message);
+  }
+});
+
+app.MapGet("/download", async (HttpContext ctx) =>
+{
+
+  try
+  {
+    using var scope = ctx.RequestServices.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<FaGDbContext>();
+
+    var texts = db.Posts
+        .Where(p => !string.IsNullOrEmpty(p.Text))
+        .Select(p => $"{p.Id};{p.Text.Replace("\r\n", " ").Replace("\n", " ")}")
+        .ToList();
+
+    var fileContent = new StringBuilder();
+    foreach (var text in texts)
+    {
+      fileContent.AppendLine(text);
+    }
+
+    var bytes = Encoding.UTF8.GetBytes(fileContent.ToString());
+    var memoryStream = new MemoryStream(bytes);
+
+    return Results.File(
+        memoryStream,
+        contentType: "text/csv",
+        fileDownloadName: "posts_export.csv"
+    );
+  }
+  catch (OperationCanceledException)
+  {
+    return Results.StatusCode((int)HttpStatusCode.RequestTimeout);
+  }
+  catch (Exception ex)
+  {
+    return Results.Problem(ex.Message);
+  }
+});
 
 app.MapGet("/process-range", async (HttpContext ctx) =>
 {

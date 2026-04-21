@@ -8,6 +8,9 @@
     <DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="posts_with_scores.csv" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -20,7 +23,15 @@
     <PackageReference Include="System.Net.Http.Json" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="posts_with_scores.csv" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\FaG.Data\FaG.Data.csproj" />
     <ProjectReference Include="..\TPulse.Client\TPulse.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="data.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

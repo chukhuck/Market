@@ -28,19 +28,20 @@ namespace FaG.Scheduler.Services
         var json = JsonSerializer.Serialize(request);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync("/evaluate", content, token);
-
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(token);
-        var result = JsonSerializer.Deserialize<EvaluateResponse>(responseJson,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        float trueScore = result?.Score ?? 0f;
+        //var response = await _httpClient.PostAsync("/evaluate", content, token);
+        //
+        //response.EnsureSuccessStatusCode();
+        //
+        //var responseJson = await response.Content.ReadAsStringAsync(token);
+        //var result = JsonSerializer.Deserialize<EvaluateResponse>(responseJson,
+        //    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        float trueScore =  0f;//result?.Score ??
 
 
         return new PostEvaluation
         {
           PostId = post.Id,
+          Score = trueScore,
           Emotion = trueScore < -0.25 ? Emotion.Negative : trueScore > 0.25 ? Emotion.Positive : Emotion.Neutral,
           Evaluator = Name,
           Date = DateTime.UtcNow
